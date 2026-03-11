@@ -1,0 +1,64 @@
+"""Tests for the Rocks layer — data models and FASTA I/O."""
+
+import pytest
+from pathlib import Path
+
+from darwin.rocks.models import Genome, Contig, Feature, FeatureType, Strand
+from darwin.rocks.fasta import parse_fasta, write_fasta, write_proteins
+
+
+class TestGenome:
+    def test_total_length(self, sample_genome):
+        assert sample_genome.total_length == 1700
+
+    def test_gc_content(self, sample_genome):
+        gc = sample_genome.gc_content
+        assert 0 < gc < 100
+
+    def test_num_contigs(self, sample_genome):
+        assert sample_genome.num_contigs == 1
+
+    def test_summary(self, sample_genome):
+        s = sample_genome.summary()
+        assert s["name"] == "test_genome"
+        assert s["num_contigs"] == 1
+        assert s["total_length_bp"] == 1700
+
+
+class TestFeature:
+    def test_length(self):
+        f = Feature(type=FeatureType.CDS, start=100, end=400)
+        assert f.length == 300
+
+    def test_location_str_forward(self):
+        f = Feature(type=FeatureType.CDS, start=1, end=900, strand=Strand.FORWARD)
+        assert f.location_str == "1..900"
+
+    def test_location_str_reverse(self):
+        f = Feature(type=FeatureType.CDS, start=1, end=900, strand=Strand.REVERSE)
+        assert "complement" in f.location_str
+
+
+class TestFasta:
+    def test_parse_fasta(self, tmp_fasta):
+        genome = parse_fasta(tmp_fasta)
+        assert genome.num_contigs == 1
+        assert genome.total_length > 0
+
+    def test_parse_missing_file(self):
+        with pytest.raises(FileNotFoundError):
+            parse_fasta(Path("/nonexistent.fasta"))
+
+    def test_write_fasta(self, sample_genome, tmp_path):
+        out = tmp_path / "out.fasta"
+        result = write_fasta(sample_genome, out)
+        assert result.exists()
+        content = result.read_text()
+        assert ">contig_1" in content
+
+    def test_write_proteins(self, annotated_genome, tmp_path):
+        out = tmp_path / "proteins.faa"
+        result = write_proteins(annotated_genome, out)
+        assert result.exists()
+        content = result.read_text()
+        assert ">TEST_00001" in content

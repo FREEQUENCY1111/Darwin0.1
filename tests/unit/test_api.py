@@ -1,51 +1,46 @@
-"""Tests for the FastAPI REST backend."""
-
-from __future__ import annotations
+"""Tests for the Sunlight API layer."""
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient, ASGITransport
 
-from darwin.api.app import app
+from darwin.sunlight.api import create_app
 
 
 @pytest.fixture
-async def client():
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        yield ac
+def app():
+    return create_app()
 
 
-class TestHealthEndpoint:
-    async def test_health(self, client: AsyncClient):
-        resp = await client.get("/health")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["status"] == "ok"
-        assert "version" in data
-        assert "tools" in data
+class TestAPI:
+    @pytest.mark.asyncio
+    async def test_root(self, app):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get("/")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert "Darwin" in data["name"]
 
+    @pytest.mark.asyncio
+    async def test_health(self, app):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get("/health")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert "status" in data
+            assert "soil" in data
 
-class TestAnnotateEndpoint:
-    async def test_reject_non_fasta(self, client: AsyncClient):
-        resp = await client.post(
-            "/annotate",
-            files={"file": ("test.txt", b"not a fasta", "text/plain")},
-        )
-        assert resp.status_code == 400
+    @pytest.mark.asyncio
+    async def test_jobs_empty(self, app):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get("/jobs")
+            assert resp.status_code == 200
 
-    async def test_submit_fasta(self, client: AsyncClient, tmp_fasta):
-        with open(tmp_fasta, "rb") as f:
-            resp = await client.post(
-                "/annotate",
-                files={"file": (tmp_fasta.name, f, "application/octet-stream")},
-            )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert "job_id" in data
-        assert data["status"] == "submitted"
-
-
-class TestJobsEndpoint:
-    async def test_job_not_found(self, client: AsyncClient):
-        resp = await client.get("/jobs/nonexistent")
-        assert resp.status_code == 404
+    @pytest.mark.asyncio
+    async def test_job_not_found(self, app):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get("/jobs/nonexistent")
+            assert resp.status_code == 404

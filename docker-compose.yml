@@ -1,49 +1,14 @@
-# ============================================================
-# Darwin Agent Council — Docker Compose
-# ============================================================
-# One command to run the full stack:
-#   docker compose up
-#
-# Services:
-#   - darwin-api: FastAPI backend with the Agent Council
-#   - redis: Job queue and caching (future use)
-#   - traefik: Reverse proxy with auto-SSL (production)
-
 services:
   darwin-api:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    build: .
+    command: ["serve", "--host", "0.0.0.0", "--port", "8000"]
     ports:
       - "8000:8000"
-    environment:
-      - DARWIN_WORKERS=2
-      - DARWIN_LOG_LEVEL=info
     volumes:
-      - darwin-data:/home/annotator/data
-      - darwin-db:/home/annotator/db
-    entrypoint: ["darwin", "serve", "--host", "0.0.0.0", "--port", "8000"]
+      - ./data:/data
+      - ./output:/app/darwin_output
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
-    restart: unless-stopped
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-    restart: unless-stopped
-
-volumes:
-  darwin-data:
-  darwin-db:
-  redis-data:

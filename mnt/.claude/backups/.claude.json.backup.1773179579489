@@ -1,0 +1,55 @@
+{
+  "cachedGrowthBookFeatures": {
+    "tengu_event_sampling_config": {},
+    "tengu_log_segment_events": false,
+    "tengu_log_datadog_events": true,
+    "tengu_marble_anvil": true,
+    "tengu_tool_pear": false,
+    "tengu_scarf_coffee": false,
+    "tengu_claudeai_mcp_connectors": true,
+    "tengu_keybinding_customization_release": true,
+    "tengu_amber_quartz": false,
+    "tengu_thinkback": false,
+    "tengu_chomp_inflection": false,
+    "tengu_marble_sandcastle": true,
+    "tengu_penguins_off": null,
+    "tengu_marble_lantern_disabled": false,
+    "tengu_mcp_elicitation": false,
+    "tengu_pebble_leaf_prune": false,
+    "tengu_mulberry_fog": false,
+    "tengu_coral_fern": true,
+    "tengu_summarize_tool_results": true,
+    "tengu_bergotte_lantern": false,
+    "tengu_swann_brevity": "focused",
+    "tengu_system_prompt_global_cache": true,
+    "enhanced_telemetry_beta": false,
+    "tengu_streaming_tool_execution2": true,
+    "tengu_moth_copse": false,
+    "tengu_tool_search_unsupported_models": [
+      "haiku"
+    ],
+    "tengu_fgts": false,
+    "tengu_plan_mode_interview_phase": false,
+    "tengu_attribution_header": true,
+    "tengu_prompt_cache_1h_config": {
+      "allowlist": [
+        "repl_main_thread*",
+        "sdk",
+        "auto_mode"
+      ]
+    },
+    "tengu_crystal_beam": {
+      "budgetTokens": 0
+    }
+  },
+  "oauthAccount": {
+    "accountUuid": "a857a211-9afb-48de-bbfa-e99bac8c3ac2",
+    "emailAddress": "rtjavorek@gmail.com",
+    "organizationUuid": "381b5409-8c77-46de-9aff-ac790b135aa8"
+  },
+  "firstStartTime": "2026-03-10T21:50:48.376Z",
+  "opusProMigrationComplete": true,
+  "sonnet1m45MigrationComplete": true,
+  "userID": "48ed97befdb5fbd2b5348ef4b59b51c67dbb62b8379a5a4bacb37804656ef2a9",
+  "cachedExtraUsageDisabledReason": "org_level_disabled"
+}

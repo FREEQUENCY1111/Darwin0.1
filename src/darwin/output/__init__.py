@@ -1,1 +1,1 @@
-"""Output formatters for annotation results."""
+"""\nUtility module.\n"""

@@ -1,0 +1,202 @@
+# ============================================================
+# CI — Continuous Integration for Prokaryotic Genome Annotator
+# ============================================================
+# Triggers on every push and pull request to main/dev branches.
+# Runs linting, type-checking, and the full test suite across
+# multiple Python versions to catch issues early.
+#
+# Optimizations included:
+#   • Dependency caching (pip) — saves ~30-60s per run
+#   • Matrix strategy — tests multiple Python versions in parallel
+#   • fail-fast: false — so one version failing doesn't cancel others
+#   • Concurrency grouping — auto-cancels stale runs on the same branch
+#   • Bioinformatics test data caching — avoids re-downloading genomes
+
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+      - "LICENSE"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+      - "LICENSE"
+
+# Cancel in-progress runs for the same branch/PR (saves CI minutes)
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pin your minimum supported Python for single-version jobs
+  DEFAULT_PYTHON: "3.11"
+
+jobs:
+  # ── 1. Code Quality ────────────────────────────────────────
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.DEFAULT_PYTHON }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: lint-pip-${{ hashFiles('pyproject.toml') }}
+          restore-keys: lint-pip-
+
+      - name: Install linting tools
+        run: pip install ruff mypy
+
+      - name: Ruff lint (errors + style)
+        run: ruff check . --output-format=github
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+  # ── 2. Type Checking ───────────────────────────────────────
+  typecheck:
+    name: Type Check (mypy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.DEFAULT_PYTHON }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: typecheck-pip-${{ hashFiles('pyproject.toml') }}
+          restore-keys: typecheck-pip-
+
+      - name: Install project + type stubs
+        run: |
+          pip install -e ".[dev]"
+          pip install mypy types-requests
+
+      - name: Run mypy
+        run: mypy src/ --ignore-missing-imports
+
+  # ── 3. Tests ───────────────────────────────────────────────
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: test-pip-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml') }}
+          restore-keys: test-pip-${{ matrix.python-version }}-
+
+      # Cache test reference genomes / data so you don't re-download
+      - name: Cache test data
+        uses: actions/cache@v4
+        with:
+          path: tests/data
+          key: test-data-${{ hashFiles('tests/data/*.sha256', 'tests/conftest.py') }}
+
+      # Install bioinformatics system dependencies
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q \
+            prodigal \
+            hmmer \
+            aragorn \
+            barrnap \
+            infernal
+
+      - name: Install project with test extras
+        run: pip install -e ".[dev,test]"
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ \
+            -v \
+            --tb=short \
+            --cov=src \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            -x  # stop on first failure for faster feedback
+
+      - name: Upload coverage report
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+
+  # ── 4. Integration Tests (heavier, only on main) ──────────
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+    needs: [test]  # only run if unit tests pass
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.DEFAULT_PYTHON }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: integration-pip-${{ hashFiles('pyproject.toml') }}
+          restore-keys: integration-pip-
+
+      - name: Cache reference databases
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/genome-annotator/db
+          key: ref-db-${{ hashFiles('scripts/download_db.sh') }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q prodigal hmmer aragorn barrnap infernal
+
+      - name: Install project
+        run: pip install -e ".[dev,test]"
+
+      - name: Download small reference DB (if not cached)
+        run: |
+          if [ ! -d ~/.local/share/genome-annotator/db ]; then
+            python -m genome_annotator.setup --db-size minimal
+          fi
+
+      - name: Run integration tests
+        run: |
+          pytest tests/integration/ \
+            -v \
+            --tb=short \
+            -m integration \
+            --timeout=300

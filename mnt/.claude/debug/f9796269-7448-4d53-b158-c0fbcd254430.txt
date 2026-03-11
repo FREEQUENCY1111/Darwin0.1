@@ -1,0 +1,100 @@
+2026-03-11T14:27:55.653Z [DEBUG] detectFileEncoding failed for expected reason: ENOENT
+2026-03-11T14:27:55.654Z [DEBUG] MDM settings load completed in 0ms
+2026-03-11T14:27:55.655Z [DEBUG] [init] configureGlobalMTLS starting
+2026-03-11T14:27:55.655Z [DEBUG] [init] configureGlobalMTLS complete
+2026-03-11T14:27:55.655Z [DEBUG] [init] configureGlobalAgents starting
+2026-03-11T14:27:55.656Z [DEBUG] [init] configureGlobalAgents complete
+2026-03-11T14:27:55.663Z [DEBUG] [STARTUP] Loading MCP configs...
+2026-03-11T14:27:55.665Z [DEBUG] [ToolSearch:optimistic] mode=standard, ENABLE_TOOL_SEARCH=false, result=false
+2026-03-11T14:27:55.665Z [DEBUG] [STARTUP] Running setup()...
+2026-03-11T14:27:55.666Z [DEBUG] Git remote URL: null
+2026-03-11T14:27:55.666Z [DEBUG] No git remote URL found
+2026-03-11T14:27:55.666Z [DEBUG] Loading skills from: managed=/etc/claude-code/.claude/skills, user=/sessions/laughing-wizardly-galileo/mnt/.claude/skills, project=[]
+2026-03-11T14:27:55.666Z [DEBUG] Error log sink initialized
+2026-03-11T14:27:55.669Z [DEBUG] installed_plugins.json doesn't exist, returning empty V2 object
+2026-03-11T14:27:55.669Z [DEBUG] Loaded 0 unique skills (0 unconditional, 0 conditional, managed: 0, user: 0, project: 0, additional: 0, legacy commands: 0)
+2026-03-11T14:27:55.669Z [DEBUG] [STARTUP] setup() completed in 4ms
+2026-03-11T14:27:55.669Z [DEBUG] [STARTUP] Loading commands and agents...
+2026-03-11T14:27:55.687Z [DEBUG] Loaded inline plugin from path: anthropic-skills
+2026-03-11T14:27:55.688Z [DEBUG] Loaded inline plugin from path: cowork-plugin-management
+2026-03-11T14:27:55.689Z [DEBUG] Loaded inline plugin from path: bio-research
+2026-03-11T14:27:55.690Z [DEBUG] Loaded inline plugin from path: apollo
+2026-03-11T14:27:55.690Z [DEBUG] Loaded 4 session-only plugins from --plugin-dir
+2026-03-11T14:27:55.690Z [DEBUG] Found 4 plugins (4 enabled, 0 disabled)
+2026-03-11T14:27:55.690Z [DEBUG] getPluginSkills: Processing 4 enabled plugins
+2026-03-11T14:27:55.690Z [DEBUG] Checking plugin anthropic-skills: skillsPath=exists, skillsPaths=0 paths
+2026-03-11T14:27:55.690Z [DEBUG] Attempting to load skills from plugin anthropic-skills default skillsPath: /sessions/laughing-wizardly-galileo/mnt/.skills/skills
+2026-03-11T14:27:55.690Z [DEBUG] Registered 0 hooks from 4 plugins
+2026-03-11T14:27:55.690Z [DEBUG] Total plugin agents loaded: 0
+2026-03-11T14:27:55.692Z [DEBUG] Loaded 1 commands from plugin bio-research default directory
+2026-03-11T14:27:55.692Z [DEBUG] Total plugin commands loaded: 1
+2026-03-11T14:27:55.694Z [DEBUG] [claudeai-mcp] Checking gate (cached)...
+2026-03-11T14:27:55.694Z [DEBUG] [claudeai-mcp] Gate returned: true
+2026-03-11T14:27:55.694Z [DEBUG] [claudeai-mcp] Missing user:mcp_servers scope (scopes=user:inference)
+2026-03-11T14:27:55.695Z [DEBUG] Loaded 6 skills from plugin anthropic-skills default directory
+2026-03-11T14:27:55.695Z [DEBUG] Checking plugin cowork-plugin-management: skillsPath=exists, skillsPaths=0 paths
+2026-03-11T14:27:55.695Z [DEBUG] Attempting to load skills from plugin cowork-plugin-management default skillsPath: /sessions/laughing-wizardly-galileo/mnt/.local-plugins/cache/knowledge-work-plugins/cowork-plugin-management/0.2.2/skills
+2026-03-11T14:27:55.696Z [DEBUG] Loaded 2 skills from plugin cowork-plugin-management default directory
+2026-03-11T14:27:55.696Z [DEBUG] Checking plugin bio-research: skillsPath=exists, skillsPaths=0 paths
+2026-03-11T14:27:55.696Z [DEBUG] Attempting to load skills from plugin bio-research default skillsPath: /sessions/laughing-wizardly-galileo/mnt/.local-plugins/cache/knowledge-work-plugins/bio-research/1.0.0/skills
+2026-03-11T14:27:55.698Z [DEBUG] Loaded 5 skills from plugin bio-research default directory
+2026-03-11T14:27:55.698Z [DEBUG] Checking plugin apollo: skillsPath=exists, skillsPaths=0 paths
+2026-03-11T14:27:55.698Z [DEBUG] Attempting to load skills from plugin apollo default skillsPath: /sessions/laughing-wizardly-galileo/mnt/.local-plugins/cache/knowledge-work-plugins/apollo/0.1.0/skills
+2026-03-11T14:27:55.701Z [DEBUG] Loaded 3 skills from plugin apollo default directory
+2026-03-11T14:27:55.701Z [DEBUG] Total plugin skills loaded: 16
+2026-03-11T14:27:55.701Z [DEBUG] getSkills returning: 0 skill dir commands, 16 plugin skills, 0 bundled skills
+2026-03-11T14:27:55.701Z [DEBUG] [STARTUP] Commands and agents loaded in 32ms
+2026-03-11T14:27:55.701Z [DEBUG] [LSP MANAGER] initializeLspServerManager() called
+2026-03-11T14:27:55.701Z [DEBUG] [LSP MANAGER] Created manager instance, state=pending
+2026-03-11T14:27:55.701Z [DEBUG] [LSP MANAGER] Starting async initialization (generation 1)
+2026-03-11T14:27:55.702Z [DEBUG] [STARTUP] MCP configs loaded in 39ms
+2026-03-11T14:27:55.706Z [DEBUG] Initialized versioned plugins system with 0 plugins
+2026-03-11T14:27:55.707Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-03-11T14:27:55.712Z [DEBUG] [Perfetto] initializePerfettoTracing called, env value: undefined
+2026-03-11T14:27:55.712Z [DEBUG] [3P telemetry] isTelemetryEnabled=false (CLAUDE_CODE_ENABLE_TELEMETRY=undefined)
+2026-03-11T14:27:55.718Z [DEBUG] Plugin autoupdate: skipped (auto-updater disabled)
+2026-03-11T14:27:55.761Z [DEBUG] CLAUDE_CODE_WEBSOCKET_AUTH_FILE_DESCRIPTOR not set, no file descriptor token available
+2026-03-11T14:27:55.761Z [DEBUG] MCP server "plugin:bio-research:pubmed": Initializing HTTP transport to https://pubmed.mcp.claude.com/mcp
+2026-03-11T14:27:55.761Z [DEBUG] MCP server "plugin:bio-research:pubmed": Node version: v24.3.0, Platform: linux
+2026-03-11T14:27:55.761Z [DEBUG] MCP server "plugin:bio-research:pubmed": Environment: {"NODE_OPTIONS":"not set","UV_THREADPOOL_SIZE":"default","HTTP_PROXY":"http://localhost:3128","HTTPS_PROXY":"http://localhost:3128","NO_PROXY":"localhost,127.0.0.1,::1,*.local,.local,169.254.0.0/16,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"}
+2026-03-11T14:27:55.761Z [DEBUG] MCP server "plugin:bio-research:pubmed": Proxy options: default
+2026-03-11T14:27:55.761Z [DEBUG] MCP server "plugin:bio-research:pubmed": HTTP transport options: {"url":"https://pubmed.mcp.claude.com/mcp","headers":{"User-Agent":"claude-code/2.1.63 (local-agent)"},"hasAuthProvider":true,"timeoutMs":60000}
+2026-03-11T14:27:55.761Z [DEBUG] MCP server "plugin:bio-research:pubmed": HTTP transport created successfully
+2026-03-11T14:27:55.763Z [DEBUG] MCP server "plugin:bio-research:pubmed": Client created, setting up request handler
+2026-03-11T14:27:55.763Z [DEBUG] MCP server "plugin:bio-research:pubmed": Starting connection with timeout of 30000ms
+2026-03-11T14:27:55.763Z [DEBUG] MCP server "plugin:bio-research:pubmed": Testing basic HTTP connectivity to https://pubmed.mcp.claude.com/mcp
+2026-03-11T14:27:55.763Z [DEBUG] MCP server "plugin:bio-research:pubmed": Parsed URL: host=pubmed.mcp.claude.com, port=default, protocol=https:
+2026-03-11T14:27:55.763Z [DEBUG] MCP server "plugin:bio-research:pubmed": Token expired without refresh token
+2026-03-11T14:27:55.763Z [DEBUG] MCP server "plugin:bio-research:biorender": Initializing HTTP transport to https://mcp.services.biorender.com/mcp
+2026-03-11T14:27:55.763Z [DEBUG] MCP server "plugin:bio-research:biorender": Node version: v24.3.0, Platform: linux
+2026-03-11T14:27:55.763Z [DEBUG] MCP server "plugin:bio-research:biorender": Environment: {"NODE_OPTIONS":"not set","UV_THREADPOOL_SIZE":"default","HTTP_PROXY":"http://localhost:3128","HTTPS_PROXY":"http://localhost:3128","NO_PROXY":"localhost,127.0.0.1,::1,*.local,.local,169.254.0.0/16,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"}
+2026-03-11T14:27:55.763Z [DEBUG] MCP server "plugin:bio-research:biorender": Proxy options: default
+2026-03-11T14:27:55.763Z [DEBUG] MCP server "plugin:bio-research:biorender": HTTP transport options: {"url":"https://mcp.services.biorender.com/mcp","headers":{"User-Agent":"claude-code/2.1.63 (local-agent)"},"hasAuthProvider":true,"timeoutMs":60000}
+2026-03-11T14:27:55.763Z [DEBUG] MCP server "plugin:bio-research:biorender": HTTP transport created successfully
+2026-03-11T14:27:55.764Z [DEBUG] MCP server "plugin:bio-research:biorender": Client created, setting up request handler
+2026-03-11T14:27:55.764Z [DEBUG] MCP server "plugin:bio-research:biorender": Starting connection with timeout of 30000ms
+2026-03-11T14:27:55.764Z [DEBUG] MCP server "plugin:bio-research:biorender": Testing basic HTTP connectivity to https://mcp.services.biorender.com/mcp
+2026-03-11T14:27:55.764Z [DEBUG] MCP server "plugin:bio-research:biorender": Parsed URL: host=mcp.services.biorender.com, port=default, protocol=https:
+2026-03-11T14:27:55.764Z [DEBUG] MCP server "plugin:bio-research:biorender": No token data found
+2026-03-11T14:27:55.764Z [DEBUG] MCP server "plugin:apollo:apollo": Initializing HTTP transport to https://mcp.apollo.io/mcp
+2026-03-11T14:27:55.764Z [DEBUG] MCP server "plugin:apollo:apollo": Node version: v24.3.0, Platform: linux
+2026-03-11T14:27:55.764Z [DEBUG] MCP server "plugin:apollo:apollo": Environment: {"NODE_OPTIONS":"not set","UV_THREADPOOL_SIZE":"default","HTTP_PROXY":"http://localhost:3128","HTTPS_PROXY":"http://localhost:3128","NO_PROXY":"localhost,127.0.0.1,::1,*.local,.local,169.254.0.0/16,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"}
+2026-03-11T14:27:55.764Z [DEBUG] MCP server "plugin:apollo:apollo": Proxy options: default
+2026-03-11T14:27:55.764Z [DEBUG] MCP server "plugin:apollo:apollo": HTTP transport options: {"url":"https://mcp.apollo.io/mcp","headers":{"User-Agent":"claude-code/2.1.63 (local-agent)"},"hasAuthProvider":true,"timeoutMs":60000}
+2026-03-11T14:27:55.764Z [DEBUG] MCP server "plugin:apollo:apollo": HTTP transport created successfully
+2026-03-11T14:27:55.765Z [DEBUG] MCP server "plugin:apollo:apollo": Client created, setting up request handler
+2026-03-11T14:27:55.765Z [DEBUG] MCP server "plugin:apollo:apollo": Starting connection with timeout of 30000ms
+2026-03-11T14:27:55.765Z [DEBUG] MCP server "plugin:apollo:apollo": Testing basic HTTP connectivity to https://mcp.apollo.io/mcp
+2026-03-11T14:27:55.765Z [DEBUG] MCP server "plugin:apollo:apollo": Parsed URL: host=mcp.apollo.io, port=default, protocol=https:
+2026-03-11T14:27:55.765Z [DEBUG] MCP server "plugin:apollo:apollo": No token data found
+2026-03-11T14:27:55.765Z [DEBUG] MCP server "plugin:bio-research:benchling": Initializing HTTP transport to
+2026-03-11T14:27:55.765Z [DEBUG] MCP server "plugin:bio-research:benchling": Node version: v24.3.0, Platform: linux
+2026-03-11T14:27:55.765Z [DEBUG] MCP server "plugin:bio-research:benchling": Environment: {"NODE_OPTIONS":"not set","UV_THREADPOOL_SIZE":"default","HTTP_PROXY":"http://localhost:3128","HTTPS_PROXY":"http://localhost:3128","NO_PROXY":"localhost,127.0.0.1,::1,*.local,.local,169.254.0.0/16,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"}
+2026-03-11T14:27:55.765Z [DEBUG] MCP server "plugin:bio-research:benchling": Proxy options: default
+2026-03-11T14:27:55.765Z [DEBUG] MCP server "plugin:bio-research:benchling": HTTP transport options: {"url":"","headers":{"User-Agent":"claude-code/2.1.63 (local-agent)"},"hasAuthProvider":true,"timeoutMs":60000}
+2026-03-11T14:27:55.767Z [DEBUG] MCP server "plugin:bio-research:benchling": Connection failed after 1ms: "" cannot be parsed as a URL.
+2026-03-11T14:27:55.767Z [ERROR] MCP server "plugin:bio-research:benchling" Connection failed: "" cannot be parsed as a URL.
+2026-03-11T14:27:55.767Z [DEBUG] MCP server "plugin:bio-research:owkin": Initializing HTTP transport to https://mcp.k.owkin.com/mcp
+2026-03-11T14:27:55.767Z [DEBUG] MCP server "plugin:bio-research:owkin": Node version: v24.3.0, Platform: linux
+2026-03-11T14:27:55.767Z [DEBUG] MCP server "plugin:bio-research:owkin": Environment: {"NODE_OPTIONS":"not set","UV_THREADPOOL_SIZE":"default","HTTP_PROXY":"http://localhost:3128","HTTPS_PROXY":"http://localhost:3128","NO_PROXY":"localhost,127.0.0.1,::1,*.local,.local,169.254.0.0/16,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"}
+2026-03-11T14:27:55.767Z [DEBUG] MCP server "plugin:bio-research:owkin": Proxy options: default
