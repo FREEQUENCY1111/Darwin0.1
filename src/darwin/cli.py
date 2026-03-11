@@ -100,7 +100,7 @@ def annotate(
 ) -> None:
     """Annotate a prokaryotic genome from a FASTA file."""
     from darwin.models import AnnotationConfig
-    from darwin.pipeline.runner import DarwinPipeline
+    from darwin.council.orchestrator import Orchestrator
 
     if output is None:
         output = input_fasta.parent / f"{input_fasta.stem}_darwin"
@@ -118,10 +118,15 @@ def annotate(
         formats=[f.strip() for f in formats.split(",")],
     )
 
-    pipeline = DarwinPipeline(config)
-    pipeline.run()
+    # Run the Agent Council
+    orchestrator = Orchestrator(config)
+    result = orchestrator.run()
 
-    console.print(f"\n[green bold]Done![/] Results in: {output}")
+    if result.get("halted"):
+        console.print("\n[red bold]Pipeline halted — see issues above[/]")
+        raise SystemExit(1)
+    else:
+        console.print(f"\n[green bold]Done![/] Results in: {output}")
 
 
 @main.command()

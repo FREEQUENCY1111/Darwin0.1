@@ -184,21 +184,30 @@ async def get_job(job_id: str) -> JobResultResponse:
 
 
 def _run_annotation(job_id: str, config: AnnotationConfig) -> None:
-    """Run the annotation pipeline as a background task."""
+    """Run the annotation pipeline via the Agent Council."""
+    from darwin.council.orchestrator import Orchestrator
     from darwin.output.json_out import genome_to_dict
-    from darwin.pipeline.runner import DarwinPipeline
 
     jobs.update(job_id, status="running")
 
     try:
-        pipeline = DarwinPipeline(config)
-        genome = pipeline.run()
-        result = genome_to_dict(genome)
-        jobs.update(job_id, status="completed", result=result)
+        orchestrator = Orchestrator(config)
+        council_result = orchestrator.run()
+
+        if council_result.get("halted"):
+            jobs.update(job_id, status="failed", error="Pipeline halted by council")
+        else:
+            genome = orchestrator.context.genome
+            result = genome_to_dict(genome) if genome else {}
+            result["council"] = {
+                "decisions": council_result.get("decisions", []),
+                "agent_status": council_result.get("council_status", {}),
+                "elapsed_seconds": council_result.get("elapsed_seconds"),
+            }
+            jobs.update(job_id, status="completed", result=result)
     except Exception as exc:
         jobs.update(job_id, status="failed", error=str(exc))
     finally:
-        # Clean up temp files (keep results in memory)
         try:
             shutil.rmtree(config.output_dir.parent, ignore_errors=True)
         except Exception:
