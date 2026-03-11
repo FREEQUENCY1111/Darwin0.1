@@ -1,0 +1,136 @@
+# ============================================================
+# CD — Release & Publish for Prokaryotic Genome Annotator
+# ============================================================
+# Triggered when you push a version tag (e.g., v1.0.0).
+# Builds the Python package, creates a GitHub Release, publishes
+# to PyPI, and optionally builds + pushes a Docker image.
+#
+# Usage:
+#   git tag v0.1.0
+#   git push origin v0.1.0
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+# Prevent duplicate release jobs
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false  # don't cancel releases mid-flight
+
+permissions:
+  contents: write       # for creating GitHub Releases
+  id-token: write       # for trusted PyPI publishing (no API token needed)
+  packages: write       # for pushing Docker images to GHCR
+
+jobs:
+  # ── 1. Run full CI first ───────────────────────────────────
+  ci:
+    name: CI Gate
+    uses: ./.github/workflows/ci.yml
+
+  # ── 2. Build Python Package ────────────────────────────────
+  build:
+    name: Build Package
+    runs-on: ubuntu-latest
+    needs: [ci]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history for version detection
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tools
+        run: pip install build
+
+      - name: Build sdist + wheel
+        run: python -m build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  # ── 3. Publish to PyPI (Trusted Publisher) ─────────────────
+  publish-pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: [build]
+    environment: release  # GitHub Environment for deployment protection
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        # Uses Trusted Publishers — no API token needed!
+        # Set this up at: https://pypi.org/manage/account/publishing/
+
+  # ── 4. GitHub Release with auto-generated notes ────────────
+  github-release:
+    name: GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: dist/*
+          draft: false
+          prerelease: ${{ contains(github.ref, 'rc') || contains(github.ref, 'beta') }}
+
+  # ── 5. Docker Image (for easy deployment) ──────────────────
+  docker:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    needs: [ci]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ steps.version.outputs.VERSION }}
+            ghcr.io/${{ github.repository }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Multi-platform for broader compatibility
+          platforms: linux/amd64,linux/arm64
