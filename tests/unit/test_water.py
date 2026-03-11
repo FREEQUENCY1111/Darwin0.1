@@ -1,10 +1,9 @@
 """Tests for the Water layer — reactive event stream."""
 
 import pytest
-import asyncio
 
-from darwin.water.stream import Stream, Nutrient, NutrientType
 from darwin.water.cycle import WaterCycle
+from darwin.water.stream import Nutrient, NutrientType
 
 
 class TestStream:
@@ -17,11 +16,13 @@ class TestStream:
 
         stream.subscribe(NutrientType.GENOME_LOADED, consumer)
 
-        await stream.release(Nutrient(
-            type=NutrientType.GENOME_LOADED,
-            data={"test": True},
-            source="test",
-        ))
+        await stream.release(
+            Nutrient(
+                type=NutrientType.GENOME_LOADED,
+                data={"test": True},
+                source="test",
+            )
+        )
 
         assert len(received) == 1
         assert received[0].data == {"test": True}
@@ -39,10 +40,12 @@ class TestStream:
         stream.subscribe(NutrientType.GENES_CALLED, consumer_a)
         stream.subscribe(NutrientType.GENES_CALLED, consumer_b)
 
-        await stream.release(Nutrient(
-            type=NutrientType.GENES_CALLED,
-            source="test",
-        ))
+        await stream.release(
+            Nutrient(
+                type=NutrientType.GENES_CALLED,
+                source="test",
+            )
+        )
 
         assert "a" in results
         assert "b" in results
@@ -77,10 +80,12 @@ class TestStream:
     async def test_equilibrium_on_output_written(self, stream):
         assert not stream.is_at_equilibrium
 
-        await stream.release(Nutrient(
-            type=NutrientType.OUTPUT_WRITTEN,
-            source="test",
-        ))
+        await stream.release(
+            Nutrient(
+                type=NutrientType.OUTPUT_WRITTEN,
+                source="test",
+            )
+        )
 
         assert stream.is_at_equilibrium
 

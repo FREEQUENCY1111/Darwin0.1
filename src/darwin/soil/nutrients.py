@@ -14,9 +14,8 @@ from __future__ import annotations
 
 import logging
 import shutil
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger("darwin.soil")
 
@@ -24,8 +23,9 @@ logger = logging.getLogger("darwin.soil")
 @dataclass
 class ToolInfo:
     """Information about an installed bioinformatics tool."""
+
     name: str
-    binary: Optional[Path] = None
+    binary: Path | None = None
     version: str = "unknown"
     available: bool = False
 
@@ -45,6 +45,7 @@ class ToolInfo:
 @dataclass
 class HMMDatabase:
     """A single HMM database — concentrated nutrients."""
+
     name: str
     path: Path
     description: str = ""
@@ -63,7 +64,7 @@ class NutrientStore:
     can't grow — but they handle that gracefully.
     """
 
-    def __init__(self, hmm_databases: Optional[list[Path]] = None) -> None:
+    def __init__(self, hmm_databases: list[Path] | None = None) -> None:
         self._tools: dict[str, ToolInfo] = {}
         self._hmm_dbs: list[HMMDatabase] = []
 
@@ -75,10 +76,12 @@ class NutrientStore:
         if hmm_databases:
             for db_path in hmm_databases:
                 db_path = Path(db_path)
-                self._hmm_dbs.append(HMMDatabase(
-                    name=db_path.stem,
-                    path=db_path,
-                ))
+                self._hmm_dbs.append(
+                    HMMDatabase(
+                        name=db_path.stem,
+                        path=db_path,
+                    )
+                )
 
     def survey(self) -> dict[str, bool]:
         """
@@ -100,11 +103,11 @@ class NutrientStore:
         logger.info(f"🌱 Soil survey: {available}/{total} nutrients available")
         return results
 
-    def get_tool(self, name: str) -> Optional[ToolInfo]:
+    def get_tool(self, name: str) -> ToolInfo | None:
         """Reach into the soil for a specific tool."""
         return self._tools.get(name)
 
-    def get_tool_path(self, name: str) -> Optional[Path]:
+    def get_tool_path(self, name: str) -> Path | None:
         """Get the binary path for a tool, or None if not in soil."""
         tool = self._tools.get(name)
         if tool and tool.available:

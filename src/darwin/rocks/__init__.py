@@ -9,17 +9,24 @@ They are what they are. Organisms build on top of them
 but never alter them.
 """
 
+from darwin.rocks.fasta import parse_fasta, write_fasta, write_proteins
 from darwin.rocks.models import (
-    Genome,
+    AnnotationConfig,
     Contig,
     Feature,
-    Strand,
     FeatureType,
-    AnnotationConfig,
+    Genome,
+    Strand,
 )
-from darwin.rocks.fasta import parse_fasta, write_fasta, write_proteins
 
 __all__ = [
-    "Genome", "Contig", "Feature", "Strand", "FeatureType",
-    "AnnotationConfig", "parse_fasta", "write_fasta", "write_proteins",
+    "Genome",
+    "Contig",
+    "Feature",
+    "Strand",
+    "FeatureType",
+    "AnnotationConfig",
+    "parse_fasta",
+    "write_fasta",
+    "write_proteins",
 ]

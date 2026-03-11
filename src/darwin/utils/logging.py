@@ -1,7 +1,7 @@
 """Logging setup with Rich formatting."""
 
 import logging
-import sys
+
 from rich.logging import RichHandler
 
 

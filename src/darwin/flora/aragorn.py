@@ -19,12 +19,11 @@ import logging
 import re
 import tempfile
 from pathlib import Path
-from typing import Optional
 
 from darwin.flora.base import Organism
-from darwin.rocks.models import Genome, Feature, FeatureType, Strand
-from darwin.water.stream import Nutrient, NutrientType, Stream
+from darwin.rocks.models import Feature, FeatureType, Genome, Strand
 from darwin.soil.nutrients import NutrientStore
+from darwin.water.stream import Nutrient, NutrientType, Stream
 
 logger = logging.getLogger("darwin.flora.aragorn")
 
@@ -42,7 +41,7 @@ class AragornPlant(Organism):
     def can_grow(self) -> bool:
         return self.soil.has_aragorn
 
-    async def grow(self, nutrient: Nutrient) -> Optional[Nutrient]:
+    async def grow(self, nutrient: Nutrient) -> Nutrient | None:
         """Run Aragorn to find tRNA and tmRNA genes."""
         genome: Genome = nutrient.data["genome"]
         config = nutrient.data.get("config", {})
@@ -70,9 +69,12 @@ class AragornPlant(Organism):
 
             cmd = [
                 "aragorn",
-                "-t", "-gcbact",
-                "-l", "-w",
-                "-o", str(output_file),
+                "-t",
+                "-gcbact",
+                "-l",
+                "-w",
+                "-o",
+                str(output_file),
                 str(input_fasta),
             ]
 
@@ -163,15 +165,17 @@ class AragornPlant(Organism):
                     ftype = FeatureType.TRNA
                     product = rna_type_str  # e.g., "tRNA-Ala"
 
-                features.append(Feature(
-                    type=ftype,
-                    start=start,
-                    end=end,
-                    strand=Strand.REVERSE if is_complement else Strand.FORWARD,
-                    contig_id=current_contig,
-                    locus_tag=f"{locus_prefix}_t{rna_num:04d}",
-                    product=product,
-                    inference="COORDINATES:profile:Aragorn",
-                ))
+                features.append(
+                    Feature(
+                        type=ftype,
+                        start=start,
+                        end=end,
+                        strand=Strand.REVERSE if is_complement else Strand.FORWARD,
+                        contig_id=current_contig,
+                        locus_tag=f"{locus_prefix}_t{rna_num:04d}",
+                        product=product,
+                        inference="COORDINATES:profile:Aragorn",
+                    )
+                )
 
         return features

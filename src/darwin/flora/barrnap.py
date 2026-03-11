@@ -17,12 +17,11 @@ import asyncio
 import logging
 import tempfile
 from pathlib import Path
-from typing import Optional
 
 from darwin.flora.base import Organism
-from darwin.rocks.models import Genome, Feature, FeatureType, Strand
-from darwin.water.stream import Nutrient, NutrientType, Stream
+from darwin.rocks.models import Feature, FeatureType, Genome, Strand
 from darwin.soil.nutrients import NutrientStore
+from darwin.water.stream import Nutrient, NutrientType, Stream
 
 logger = logging.getLogger("darwin.flora.barrnap")
 
@@ -40,7 +39,7 @@ class BarrnapPlant(Organism):
     def can_grow(self) -> bool:
         return self.soil.has_barrnap
 
-    async def grow(self, nutrient: Nutrient) -> Optional[Nutrient]:
+    async def grow(self, nutrient: Nutrient) -> Nutrient | None:
         """Run Barrnap to predict rRNA genes."""
         genome: Genome = nutrient.data["genome"]
         config = nutrient.data.get("config", {})
@@ -125,7 +124,6 @@ class BarrnapPlant(Organism):
             # Parse product from attributes
             attrs = parts[8]
             product = "rRNA"
-            name_match = None
             for attr in attrs.split(";"):
                 if attr.startswith("Name="):
                     product = attr.split("=", 1)[1]
@@ -141,16 +139,18 @@ class BarrnapPlant(Organism):
                 product = "23S ribosomal RNA"
 
             rrna_num += 1
-            features.append(Feature(
-                type=FeatureType.RRNA,
-                start=start,
-                end=end,
-                strand=strand,
-                score=score,
-                contig_id=contig_id,
-                locus_tag=f"{locus_prefix}_r{rrna_num:04d}",
-                product=product,
-                inference="COORDINATES:profile:Barrnap",
-            ))
+            features.append(
+                Feature(
+                    type=FeatureType.RRNA,
+                    start=start,
+                    end=end,
+                    strand=strand,
+                    score=score,
+                    contig_id=contig_id,
+                    locus_tag=f"{locus_prefix}_r{rrna_num:04d}",
+                    product=product,
+                    inference="COORDINATES:profile:Barrnap",
+                )
+            )
 
         return features

@@ -1,14 +1,19 @@
 """Test fixtures for the Darwin ecosphere."""
 
-import pytest
-import tempfile
 from pathlib import Path
 
+import pytest
+
 from darwin.rocks.models import (
-    Genome, Contig, Feature, FeatureType, Strand, AnnotationConfig,
+    AnnotationConfig,
+    Contig,
+    Feature,
+    FeatureType,
+    Genome,
+    Strand,
 )
-from darwin.water.stream import Stream
 from darwin.soil.nutrients import NutrientStore
+from darwin.water.stream import Stream
 
 
 @pytest.fixture

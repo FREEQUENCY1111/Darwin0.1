@@ -16,11 +16,9 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional
 
-from darwin.water.stream import Stream, Nutrient, NutrientType
 from darwin.soil.nutrients import NutrientStore
-from darwin.rocks.models import Genome
+from darwin.water.stream import Nutrient, NutrientType, Stream
 
 logger = logging.getLogger("darwin.flora")
 
@@ -54,9 +52,7 @@ class Organism(ABC):
         """
         for nutrient_type in self.feeds_on_nutrients:
             self.stream.subscribe(nutrient_type, self._consume)
-            self.logger.debug(
-                f"🌱 {self.name} planted, feeding on {nutrient_type.value}"
-            )
+            self.logger.debug(f"🌱 {self.name} planted, feeding on {nutrient_type.value}")
 
     async def _consume(self, nutrient: Nutrient) -> None:
         """
@@ -75,15 +71,17 @@ class Organism(ABC):
                 await self.stream.release(result)
         except Exception as e:
             self.logger.error(f"🥀 {self.name} wilted: {e}")
-            await self.stream.release(Nutrient(
-                type=NutrientType.ERROR,
-                data={"organism": self.name, "error": str(e)},
-                source=self.name,
-                correlation_id=nutrient.correlation_id,
-            ))
+            await self.stream.release(
+                Nutrient(
+                    type=NutrientType.ERROR,
+                    data={"organism": self.name, "error": str(e)},
+                    source=self.name,
+                    correlation_id=nutrient.correlation_id,
+                )
+            )
 
     @abstractmethod
-    async def grow(self, nutrient: Nutrient) -> Optional[Nutrient]:
+    async def grow(self, nutrient: Nutrient) -> Nutrient | None:
         """
         Do the work. Absorb input, produce output.
 

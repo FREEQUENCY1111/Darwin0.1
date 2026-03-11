@@ -12,7 +12,7 @@ Components don't call each other. They:
 The water is the ONLY connection between living things.
 """
 
-from darwin.water.stream import Stream, Nutrient, NutrientType
 from darwin.water.cycle import WaterCycle
+from darwin.water.stream import Nutrient, NutrientType, Stream
 
 __all__ = ["Stream", "Nutrient", "NutrientType", "WaterCycle"]

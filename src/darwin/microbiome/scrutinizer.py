@@ -16,13 +16,12 @@ Downstream organisms decide how to handle warnings.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 from darwin.flora.base import Organism
-from darwin.rocks.models import Genome, FeatureType
-from darwin.water.stream import Nutrient, NutrientType, Stream
+from darwin.rocks.models import FeatureType, Genome
 from darwin.soil.nutrients import NutrientStore
+from darwin.water.stream import Nutrient, NutrientType, Stream
 
 logger = logging.getLogger("darwin.microbiome.scrutinizer")
 
@@ -30,6 +29,7 @@ logger = logging.getLogger("darwin.microbiome.scrutinizer")
 @dataclass
 class QCCheck:
     """Result of a single quality check."""
+
     name: str
     passed: bool
     value: float
@@ -83,7 +83,7 @@ class Scrutinizer(Organism):
         if self._expected_signals.issubset(received_types):
             await self._run_qc(nutrient.correlation_id)
 
-    async def _run_qc(self, correlation_id: Optional[str]) -> None:
+    async def _run_qc(self, correlation_id: str | None) -> None:
         """Run all quality checks on the assembled data."""
         # Get the genome from any signal (they all carry it)
         genome: Genome = list(self._signals_received.values())[0].data["genome"]
@@ -120,42 +120,46 @@ class Scrutinizer(Organism):
             self.logger.info(f"  {icon} {check.name}: {check.message}")
 
         # Release QC results into the water
-        await self.stream.release(Nutrient(
-            type=NutrientType.QC_COMPLETED,
-            data={
-                "genome": genome,
-                "checks": [
-                    {
-                        "name": c.name,
-                        "passed": c.passed,
-                        "value": c.value,
-                        "expected": c.expected_range,
-                        "message": c.message,
-                        "severity": c.severity,
-                    }
-                    for c in checks
-                ],
-                "passed": passed,
-                "total": total,
-                "critical_failures": len(critical),
-                "healthy": len(critical) == 0,
-                "config": list(self._signals_received.values())[0].data.get("config", {}),
-            },
-            source=self.name,
-            correlation_id=correlation_id,
-        ))
+        await self.stream.release(
+            Nutrient(
+                type=NutrientType.QC_COMPLETED,
+                data={
+                    "genome": genome,
+                    "checks": [
+                        {
+                            "name": c.name,
+                            "passed": c.passed,
+                            "value": c.value,
+                            "expected": c.expected_range,
+                            "message": c.message,
+                            "severity": c.severity,
+                        }
+                        for c in checks
+                    ],
+                    "passed": passed,
+                    "total": total,
+                    "critical_failures": len(critical),
+                    "healthy": len(critical) == 0,
+                    "config": list(self._signals_received.values())[0].data.get("config", {}),
+                },
+                source=self.name,
+                correlation_id=correlation_id,
+            )
+        )
 
         # Release warnings for failed checks
         for check in checks:
             if not check.passed:
-                await self.stream.release(Nutrient(
-                    type=NutrientType.WARNING,
-                    data={"check": check.name, "message": check.message},
-                    source=self.name,
-                    correlation_id=correlation_id,
-                ))
+                await self.stream.release(
+                    Nutrient(
+                        type=NutrientType.WARNING,
+                        data={"check": check.name, "message": check.message},
+                        source=self.name,
+                        correlation_id=correlation_id,
+                    )
+                )
 
-    async def grow(self, nutrient: Nutrient) -> Optional[Nutrient]:
+    async def grow(self, nutrient: Nutrient) -> Nutrient | None:
         """Not used directly — we use _collect_signal instead."""
         return None
 
@@ -168,7 +172,7 @@ class Scrutinizer(Organism):
             passed=passed,
             value=round(density, 3),
             expected_range="0.5-1.5 genes/kb",
-            message=f"{density:.3f} genes/kb ({len(cds)} genes in {genome.total_length/1000:.0f} kb)",
+            message=f"{density:.3f} genes/kb ({len(cds)} genes in {genome.total_length / 1000:.0f} kb)",
             severity="warning" if not passed else "info",
         )
 
@@ -225,8 +229,11 @@ class Scrutinizer(Organism):
         cds = genome.features_of_type(FeatureType.CDS)
         if not cds:
             return QCCheck(
-                name="avg_gene_length", passed=False, value=0,
-                expected_range="800-1200 bp", message="No CDS found",
+                name="avg_gene_length",
+                passed=False,
+                value=0,
+                expected_range="800-1200 bp",
+                message="No CDS found",
                 severity="critical",
             )
         avg = sum(f.length for f in cds) / len(cds)

@@ -1,10 +1,11 @@
 """Tests for the Rocks layer — data models and FASTA I/O."""
 
-import pytest
 from pathlib import Path
 
-from darwin.rocks.models import Genome, Contig, Feature, FeatureType, Strand
+import pytest
+
 from darwin.rocks.fasta import parse_fasta, write_fasta, write_proteins
+from darwin.rocks.models import Feature, FeatureType, Strand
 
 
 class TestGenome:

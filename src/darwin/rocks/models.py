@@ -10,7 +10,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Optional
 
 
 class Strand(str, Enum):
@@ -94,7 +93,7 @@ class Genome:
 
     name: str
     contigs: list[Contig] = field(default_factory=list)
-    source_file: Optional[Path] = None
+    source_file: Path | None = None
     organism: str = ""
     taxonomy: str = ""
 
@@ -108,10 +107,7 @@ class Genome:
 
     @property
     def gc_content(self) -> float:
-        total_gc = sum(
-            sum(1 for b in c.sequence.upper() if b in "GC")
-            for c in self.contigs
-        )
+        total_gc = sum(sum(1 for b in c.sequence.upper() if b in "GC") for c in self.contigs)
         total_len = self.total_length
         if total_len == 0:
             return 0.0
@@ -126,7 +122,7 @@ class Genome:
 
     def summary(self) -> dict:
         features = self.all_features
-        by_type = {}
+        by_type: dict[str, int] = {}
         for f in features:
             by_type[f.type.value] = by_type.get(f.type.value, 0) + 1
         return {

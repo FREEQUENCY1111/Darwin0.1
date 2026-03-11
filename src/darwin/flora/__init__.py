@@ -11,13 +11,16 @@ and releases new nutrients when it grows.
 Flora don't know about each other. They just grow.
 """
 
+from darwin.flora.aragorn import AragornPlant
+from darwin.flora.barrnap import BarrnapPlant
 from darwin.flora.base import Organism
 from darwin.flora.prodigal import ProdigalPlant
 from darwin.flora.pyhmmer_plant import PyhmmerPlant
-from darwin.flora.aragorn import AragornPlant
-from darwin.flora.barrnap import BarrnapPlant
 
 __all__ = [
-    "Organism", "ProdigalPlant", "PyhmmerPlant",
-    "AragornPlant", "BarrnapPlant",
+    "Organism",
+    "ProdigalPlant",
+    "PyhmmerPlant",
+    "AragornPlant",
+    "BarrnapPlant",
 ]

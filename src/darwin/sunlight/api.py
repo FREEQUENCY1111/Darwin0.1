@@ -12,22 +12,21 @@ import asyncio
 import time
 import uuid
 from pathlib import Path
-from typing import Optional
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from darwin.rocks.models import AnnotationConfig
 from darwin.jar.ecosphere import Ecosphere
+from darwin.rocks.models import AnnotationConfig
 
 
 class JobStatus(BaseModel):
     job_id: str
     status: str  # pending, running, completed, failed
     created_at: float
-    completed_at: Optional[float] = None
-    result: Optional[dict] = None
-    error: Optional[str] = None
+    completed_at: float | None = None
+    result: dict | None = None
+    error: str | None = None
 
 
 # In-memory job store (swap for Redis in production)
@@ -58,6 +57,7 @@ def create_app() -> FastAPI:
     async def health():
         """Check ecosystem health — is there enough soil?"""
         from darwin.soil.nutrients import NutrientStore
+
         soil = NutrientStore()
         report = soil.survey()
         return {
@@ -139,9 +139,7 @@ def create_app() -> FastAPI:
     return app
 
 
-async def _run_ecosphere(
-    job_id: str, config: AnnotationConfig, fasta_path: Path
-) -> None:
+async def _run_ecosphere(job_id: str, config: AnnotationConfig, fasta_path: Path) -> None:
     """Run the ecosphere in the background."""
     _jobs[job_id].status = "running"
 

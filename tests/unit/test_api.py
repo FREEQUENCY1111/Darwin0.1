@@ -1,7 +1,7 @@
 """Tests for the Sunlight API layer."""
 
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
 from darwin.sunlight.api import create_app
 

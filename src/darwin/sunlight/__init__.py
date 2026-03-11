@@ -9,7 +9,7 @@ It comes in two forms:
 Both do the same thing: send energy into the jar.
 """
 
-from darwin.sunlight.cli import cli
 from darwin.sunlight.api import create_app
+from darwin.sunlight.cli import cli
 
 __all__ = ["cli", "create_app"]

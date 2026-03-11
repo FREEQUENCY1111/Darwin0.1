@@ -10,9 +10,8 @@ from __future__ import annotations
 import gzip
 import logging
 from pathlib import Path
-from typing import TextIO
 
-from darwin.rocks.models import Genome, Contig, Feature, FeatureType
+from darwin.rocks.models import Contig, FeatureType, Genome
 
 logger = logging.getLogger("darwin.rocks")
 
@@ -34,37 +33,43 @@ def parse_fasta(filepath: Path, min_length: int = 200) -> Genome:
     current_desc = ""
     current_seq: list[str] = []
 
-    opener = gzip.open if filepath.suffix == ".gz" else open
-    mode = "rt" if filepath.suffix == ".gz" else "r"
+    if filepath.suffix == ".gz":
+        fh_ctx = gzip.open(filepath, "rt")
+    else:
+        fh_ctx = open(filepath)  # noqa: SIM115
 
-    with opener(filepath, mode) as fh:
-        for line in fh:
-            line = line.strip()
-            if not line:
+    with fh_ctx as fh:
+        for raw_line in fh:
+            line_str: str = str(raw_line).strip()
+            if not line_str:
                 continue
-            if line.startswith(">"):
+            if line_str.startswith(">"):
                 # Save previous contig
                 if current_id and len("".join(current_seq)) >= min_length:
-                    contigs.append(Contig(
-                        id=current_id,
-                        sequence="".join(current_seq).upper(),
-                        description=current_desc,
-                    ))
+                    contigs.append(
+                        Contig(
+                            id=current_id,
+                            sequence="".join(current_seq).upper(),
+                            description=current_desc,
+                        )
+                    )
                 # Parse header
-                parts = line[1:].split(None, 1)
-                current_id = parts[0]
-                current_desc = parts[1] if len(parts) > 1 else ""
+                parts = line_str[1:].split(None, 1)
+                current_id = str(parts[0])
+                current_desc = str(parts[1]) if len(parts) > 1 else ""
                 current_seq = []
             else:
-                current_seq.append(line)
+                current_seq.append(line_str)
 
     # Don't forget the last contig
     if current_id and len("".join(current_seq)) >= min_length:
-        contigs.append(Contig(
-            id=current_id,
-            sequence="".join(current_seq).upper(),
-            description=current_desc,
-        ))
+        contigs.append(
+            Contig(
+                id=current_id,
+                sequence="".join(current_seq).upper(),
+                description=current_desc,
+            )
+        )
 
     name = filepath.stem
     if name.endswith(".fasta") or name.endswith(".fa") or name.endswith(".fna"):

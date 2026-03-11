@@ -13,9 +13,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Awaitable, Optional
+from typing import Any
 
 logger = logging.getLogger("darwin.water")
 
@@ -59,7 +60,7 @@ class Nutrient:
     data: Any = None
     source: str = "unknown"
     timestamp: float = field(default_factory=time.time)
-    correlation_id: Optional[str] = None  # tracks a single run through the jar
+    correlation_id: str | None = None  # tracks a single run through the jar
 
     def __repr__(self) -> str:
         return f"Nutrient({self.type.value} from {self.source})"
@@ -100,20 +101,24 @@ class Stream:
             async def consume_genes(nutrient: Nutrient):
                 ...
         """
+
         def decorator(func: Consumer) -> Consumer:
             if nutrient_type not in self._consumers:
                 self._consumers[nutrient_type] = []
             self._consumers[nutrient_type].append(func)
             logger.debug(f"🌿 {func.__qualname__} now feeds on {nutrient_type.value}")
             return func
+
         return decorator
 
     def feeds_on_everything(self) -> Callable:
         """Decorator for decomposers that monitor all nutrients."""
+
         def decorator(func: Consumer) -> Consumer:
             self._wildcard_consumers.append(func)
             logger.debug(f"🦠 {func.__qualname__} feeds on ALL nutrients")
             return func
+
         return decorator
 
     def subscribe(self, nutrient_type: NutrientType, consumer: Consumer) -> None:
@@ -136,11 +141,23 @@ class Stream:
         """
         async with self._lock:
             self._sediment.append(nutrient)
-            self._nutrient_counts[nutrient.type] = (
-                self._nutrient_counts.get(nutrient.type, 0) + 1
-            )
+            self._nutrient_counts[nutrient.type] = self._nutrient_counts.get(nutrient.type, 0) + 1
 
         logger.info(f"💧 {nutrient.type.value} released by {nutrient.source}")
+
+        # Check if equilibrium has been reached — this must happen
+        # regardless of whether any consumers exist, because equilibrium
+        # is a property of the water itself, not of the organisms.
+        if nutrient.type == NutrientType.OUTPUT_WRITTEN:
+            self._equilibrium_event.set()
+            eq_nutrient = Nutrient(
+                type=NutrientType.EQUILIBRIUM,
+                data=self.get_sediment_summary(),
+                source="water",
+                correlation_id=nutrient.correlation_id,
+            )
+            self._sediment.append(eq_nutrient)
+            self._nutrient_counts[NutrientType.EQUILIBRIUM] = 1
 
         # Gather all consumers for this nutrient
         consumers = list(self._consumers.get(nutrient.type, []))
@@ -172,28 +189,16 @@ class Stream:
                 )
                 self._sediment.append(toxin)
 
-        # Check if equilibrium has been reached
-        if nutrient.type == NutrientType.OUTPUT_WRITTEN:
-            self._equilibrium_event.set()
-            await self.release(Nutrient(
-                type=NutrientType.EQUILIBRIUM,
-                data=self.get_sediment_summary(),
-                source="water",
-                correlation_id=nutrient.correlation_id,
-            ))
-
     async def wait_for_equilibrium(self, timeout: float = 300.0) -> bool:
         """Wait for the ecosystem to reach equilibrium (all work done)."""
         try:
-            await asyncio.wait_for(
-                self._equilibrium_event.wait(), timeout=timeout
-            )
+            await asyncio.wait_for(self._equilibrium_event.wait(), timeout=timeout)
             return True
         except asyncio.TimeoutError:
             logger.warning("⏰ Ecosystem did not reach equilibrium in time")
             return False
 
-    def get_sediment(self, nutrient_type: Optional[NutrientType] = None) -> list[Nutrient]:
+    def get_sediment(self, nutrient_type: NutrientType | None = None) -> list[Nutrient]:
         """Read the sediment layer — history of all nutrients that flowed."""
         if nutrient_type:
             return [n for n in self._sediment if n.type == nutrient_type]

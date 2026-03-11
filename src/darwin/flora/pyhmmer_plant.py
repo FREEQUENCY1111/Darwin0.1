@@ -12,12 +12,11 @@ annotation from HMM databases.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from darwin.flora.base import Organism
-from darwin.rocks.models import Genome, Feature, FeatureType
-from darwin.water.stream import Nutrient, NutrientType, Stream
+from darwin.rocks.models import FeatureType, Genome
 from darwin.soil.nutrients import NutrientStore
+from darwin.water.stream import Nutrient, NutrientType, Stream
 
 logger = logging.getLogger("darwin.flora.pyhmmer")
 
@@ -35,7 +34,7 @@ class PyhmmerPlant(Organism):
     def can_grow(self) -> bool:
         return self.soil.has_hmm
 
-    async def grow(self, nutrient: Nutrient) -> Optional[Nutrient]:
+    async def grow(self, nutrient: Nutrient) -> Nutrient | None:
         """
         Search protein translations against HMM databases.
 
@@ -60,7 +59,7 @@ class PyhmmerPlant(Organism):
                 correlation_id=nutrient.correlation_id,
             )
 
-        self.logger.info(f"🌿 Searching proteins against HMM databases...")
+        self.logger.info("🌿 Searching proteins against HMM databases...")
 
         cds_features = genome.features_of_type(FeatureType.CDS)
         proteins = {f.locus_tag: f.translation for f in cds_features if f.translation}
@@ -99,7 +98,12 @@ class PyhmmerPlant(Organism):
                 self.logger.warning("No valid protein sequences to search")
                 return Nutrient(
                     type=NutrientType.PROTEINS_FOUND,
-                    data={"genome": genome, "annotated_count": 0, "total_cds": len(cds_features), "config": config},
+                    data={
+                        "genome": genome,
+                        "annotated_count": 0,
+                        "total_cds": len(cds_features),
+                        "config": config,
+                    },
                     source=self.name,
                     correlation_id=nutrient.correlation_id,
                 )
@@ -109,15 +113,18 @@ class PyhmmerPlant(Organism):
                 self.logger.info(f"  Searching {hmm_db.name}...")
 
                 with pyhmmer.plan7.HMMFile(str(hmm_db.path)) as hmm_file:
-                    for hits in pyhmmer.hmmsearch(hmm_file, sequences, E=evalue):
+                    for hits in pyhmmer.hmmsearch(hmm_file, sequences, E=evalue):  # type: ignore[arg-type]
                         for hit in hits:
                             if hit.included:
-                                tag = tag_map.get(hit.name, "")
+                                tag = tag_map.get(hit.name, "")  # type: ignore[call-overload]
                                 if tag:
                                     # Find and update the feature
                                     for f in cds_features:
-                                        if f.locus_tag == tag and f.product == "hypothetical protein":
-                                            f.product = hits.query_name.decode()
+                                        if (
+                                            f.locus_tag == tag
+                                            and f.product == "hypothetical protein"
+                                        ):
+                                            f.product = hits.query_name.decode()  # type: ignore[attr-defined]
                                             f.inference = f"protein motif:{hmm_db.name}"
                                             f.score = hit.score
                                             annotated_count += 1
@@ -128,9 +135,7 @@ class PyhmmerPlant(Organism):
         except Exception as e:
             self.logger.error(f"HMM search failed: {e}")
 
-        hypothetical = sum(
-            1 for f in cds_features if f.product == "hypothetical protein"
-        )
+        hypothetical = sum(1 for f in cds_features if f.product == "hypothetical protein")
         self.logger.info(
             f"🧬 Annotated {annotated_count}/{len(cds_features)} proteins "
             f"({hypothetical} remain hypothetical)"

@@ -16,12 +16,11 @@ not as a boss, but as a humble microbe doing its thing.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from darwin.flora.base import Organism
-from darwin.rocks.models import Genome, FeatureType
-from darwin.water.stream import Nutrient, NutrientType, Stream
+from darwin.rocks.models import FeatureType, Genome
 from darwin.soil.nutrients import NutrientStore
+from darwin.water.stream import Nutrient, NutrientType, Stream
 
 logger = logging.getLogger("darwin.microbiome.enricher")
 
@@ -41,7 +40,7 @@ class Enricher(Organism):
     def __init__(self, stream: Stream, soil: NutrientStore) -> None:
         super().__init__(stream, soil)
 
-    async def grow(self, nutrient: Nutrient) -> Optional[Nutrient]:
+    async def grow(self, nutrient: Nutrient) -> Nutrient | None:
         """Enrich the annotation with contextual analysis."""
         genome: Genome = nutrient.data["genome"]
         qc_data = nutrient.data
@@ -66,15 +65,11 @@ class Enricher(Organism):
 
         insights.append(f"Genome classification: {size_category}")
         insights.append(f"GC content analysis: {gc_interpretation}")
-        insights.append(
-            f"Hypothetical protein ratio: {hyp_ratio:.1%} "
-            f"({hypothetical}/{len(cds)})"
-        )
+        insights.append(f"Hypothetical protein ratio: {hyp_ratio:.1%} ({hypothetical}/{len(cds)})")
 
         if hyp_ratio > 0.5:
             insights.append(
-                "HIGH hypothetical ratio suggests novel organism or "
-                "incomplete reference databases"
+                "HIGH hypothetical ratio suggests novel organism or incomplete reference databases"
             )
         elif hyp_ratio > 0.3:
             insights.append(
@@ -84,8 +79,7 @@ class Enricher(Organism):
 
         if len(trnas) < 30:
             insights.append(
-                f"Low tRNA count ({len(trnas)}) — genome may be "
-                "incomplete or highly reduced"
+                f"Low tRNA count ({len(trnas)}) — genome may be incomplete or highly reduced"
             )
 
         # Recommendations
@@ -93,7 +87,9 @@ class Enricher(Organism):
             genome, cds, trnas, rrnas, hyp_ratio, qc_data
         )
 
-        self.logger.info(f"🧬 Generated {len(insights)} insights, {len(recommendations)} recommendations")
+        self.logger.info(
+            f"🧬 Generated {len(insights)} insights, {len(recommendations)} recommendations"
+        )
 
         return Nutrient(
             type=NutrientType.ANNOTATION_READY,

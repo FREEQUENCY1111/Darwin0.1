@@ -17,13 +17,12 @@ import json
 import logging
 import time
 from pathlib import Path
-from typing import Optional
 
 from darwin.flora.base import Organism
-from darwin.rocks.models import Genome, Feature, FeatureType, Strand
 from darwin.rocks.fasta import write_fasta, write_proteins
-from darwin.water.stream import Nutrient, NutrientType, Stream
+from darwin.rocks.models import FeatureType, Genome
 from darwin.soil.nutrients import NutrientStore
+from darwin.water.stream import Nutrient, NutrientType, Stream
 
 logger = logging.getLogger("darwin.microbiome.synthesizer")
 
@@ -40,11 +39,13 @@ class Synthesizer(Organism):
     feeds_on_nutrients = [NutrientType.ANNOTATION_READY]
     produces_nutrients = [NutrientType.OUTPUT_WRITTEN]
 
-    def __init__(self, stream: Stream, soil: NutrientStore, output_dir: Path = Path("darwin_output")) -> None:
+    def __init__(
+        self, stream: Stream, soil: NutrientStore, output_dir: Path = Path("darwin_output")
+    ) -> None:
         super().__init__(stream, soil)
         self.output_dir = Path(output_dir)
 
-    async def grow(self, nutrient: Nutrient) -> Optional[Nutrient]:
+    async def grow(self, nutrient: Nutrient) -> Nutrient | None:
         """Generate all output files."""
         genome: Genome = nutrient.data["genome"]
         enrichment = nutrient.data.get("enrichment", {})
@@ -134,7 +135,9 @@ class Synthesizer(Organism):
         with open(path, "w") as fh:
             for contig in genome.contigs:
                 # Header
-                fh.write(f"LOCUS       {contig.id:<16} {contig.length} bp    DNA     linear   BCT\n")
+                fh.write(
+                    f"LOCUS       {contig.id:<16} {contig.length} bp    DNA     linear   BCT\n"
+                )
                 fh.write(f"DEFINITION  {genome.name} {contig.description}\n")
                 fh.write(f"ACCESSION   {contig.id}\n")
                 fh.write(f"VERSION     {contig.id}\n")
@@ -143,7 +146,7 @@ class Synthesizer(Organism):
                 fh.write("FEATURES             Location/Qualifiers\n")
                 fh.write(f"     source          1..{contig.length}\n")
                 fh.write(f'                     /organism="{genome.organism or "Unknown"}"\n')
-                fh.write(f'                     /mol_type="genomic DNA"\n')
+                fh.write('                     /mol_type="genomic DNA"\n')
 
                 sorted_features = sorted(contig.features, key=lambda f: f.start)
                 for f in sorted_features:
@@ -155,11 +158,11 @@ class Synthesizer(Organism):
                         fh.write(f'                     /inference="{f.inference}"\n')
                     if f.translation and f.type == FeatureType.CDS:
                         # Wrap translation at 58 chars per line
-                        fh.write(f'                     /translation="')
+                        fh.write('                     /translation="')
                         seq = f.translation
                         fh.write(seq[:58])
                         for i in range(58, len(seq), 58):
-                            fh.write(f"\n                     {seq[i:i+58]}")
+                            fh.write(f"\n                     {seq[i : i + 58]}")
                         fh.write('"\n')
 
                 # Sequence

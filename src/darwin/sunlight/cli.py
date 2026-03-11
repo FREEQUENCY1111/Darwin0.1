@@ -12,11 +12,11 @@ from pathlib import Path
 
 import click
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
 
-from darwin.rocks.models import AnnotationConfig
 from darwin.jar.ecosphere import Ecosphere
+from darwin.rocks.models import AnnotationConfig
 
 console = Console()
 
@@ -34,13 +34,21 @@ def cli() -> None:
 
 @cli.command()
 @click.argument("fasta", type=click.Path(exists=True, path_type=Path))
-@click.option("-o", "--output", type=click.Path(path_type=Path), default="darwin_output", help="Output directory")
+@click.option(
+    "-o",
+    "--output",
+    type=click.Path(path_type=Path),
+    default="darwin_output",
+    help="Output directory",
+)
 @click.option("-p", "--prefix", default="DARWIN", help="Locus tag prefix")
 @click.option("-t", "--table", default=11, type=int, help="Translation table (default: 11)")
 @click.option("-e", "--evalue", default=1e-10, type=float, help="E-value threshold for HMM search")
 @click.option("--min-length", default=200, type=int, help="Minimum contig length")
 @click.option("--cpus", default=1, type=int, help="Number of CPUs")
-@click.option("--hmm-db", multiple=True, type=click.Path(exists=True, path_type=Path), help="HMM database(s)")
+@click.option(
+    "--hmm-db", multiple=True, type=click.Path(exists=True, path_type=Path), help="HMM database(s)"
+)
 @click.option("--metagenome", is_flag=True, help="Metagenome mode (Prodigal -p meta)")
 def annotate(
     fasta: Path,
@@ -74,14 +82,16 @@ def annotate(
         metagenome_mode=metagenome,
     )
 
-    console.print(Panel.fit(
-        "[bold green]Darwin Ecosphere[/bold green]\n"
-        f"Input: {fasta}\n"
-        f"Output: {output}\n"
-        f"Prefix: {prefix}",
-        title="☀️ Adding Sunlight",
-        border_style="green",
-    ))
+    console.print(
+        Panel.fit(
+            "[bold green]Darwin Ecosphere[/bold green]\n"
+            f"Input: {fasta}\n"
+            f"Output: {output}\n"
+            f"Prefix: {prefix}",
+            title="☀️ Adding Sunlight",
+            border_style="green",
+        )
+    )
 
     # Build the jar and add sunlight
     jar = Ecosphere(config)
@@ -113,14 +123,16 @@ def annotate(
 def serve(host: str, port: int) -> None:
     """Start the Darwin API server (artificial sunlight)."""
     import uvicorn
+
     from darwin.sunlight.api import create_app
 
-    console.print(Panel.fit(
-        f"[bold yellow]API Server[/bold yellow]\n"
-        f"http://{host}:{port}",
-        title="💡 Artificial Sunlight",
-        border_style="yellow",
-    ))
+    console.print(
+        Panel.fit(
+            f"[bold yellow]API Server[/bold yellow]\nhttp://{host}:{port}",
+            title="💡 Artificial Sunlight",
+            border_style="yellow",
+        )
+    )
 
     app = create_app()
     uvicorn.run(app, host=host, port=port)
@@ -129,6 +141,8 @@ def serve(host: str, port: int) -> None:
 @cli.command()
 def check() -> None:
     """Check what's in the soil (available tools)."""
+    from darwin.soil.nutrients import NutrientStore
+
     soil = NutrientStore()
     report = soil.survey()
 
@@ -142,9 +156,7 @@ def check() -> None:
 
     console.print(table)
 
-    from darwin.soil.nutrients import NutrientStore as NS
-    ns = NS()
-    if ns.is_fertile:
+    if soil.is_fertile:
         console.print("\n[green]✅ Soil is fertile — ready for sunlight![/green]")
     else:
         console.print("\n[red]❌ Soil is barren — install Prodigal at minimum[/red]")
@@ -177,28 +189,30 @@ def _display_results(result: dict) -> None:
 
         for check in qc["checks"]:
             icon = "✅" if check["passed"] else "⚠️"
-            qc_table.add_row(
-                check["name"], icon, str(check["value"]), check["expected"]
-            )
+            qc_table.add_row(check["name"], icon, str(check["value"]), check["expected"])
         console.print(qc_table)
 
     # Enrichment insights
     enrichment = result.get("enrichment", {})
     if enrichment and enrichment.get("insights"):
-        console.print(Panel(
-            "\n".join(f"  • {i}" for i in enrichment["insights"]),
-            title="🧬 Enrichment Insights",
-            border_style="blue",
-        ))
+        console.print(
+            Panel(
+                "\n".join(f"  • {i}" for i in enrichment["insights"]),
+                title="🧬 Enrichment Insights",
+                border_style="blue",
+            )
+        )
 
     # Output files
     files = result.get("output_files", [])
     if files:
-        console.print(Panel(
-            "\n".join(f"  📄 {f}" for f in files),
-            title="📋 Output Files",
-            border_style="green",
-        ))
+        console.print(
+            Panel(
+                "\n".join(f"  📄 {f}" for f in files),
+                title="📋 Output Files",
+                border_style="green",
+            )
+        )
 
     # Nutrient flow
     flow = result.get("nutrient_flow", {})

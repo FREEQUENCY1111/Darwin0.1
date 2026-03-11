@@ -13,16 +13,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 import tempfile
 from pathlib import Path
-from typing import Optional
 
 from darwin.flora.base import Organism
-from darwin.rocks.models import Genome, Feature, FeatureType, Strand
-from darwin.water.stream import Nutrient, NutrientType
+from darwin.rocks.models import Feature, FeatureType, Genome, Strand
 from darwin.soil.nutrients import NutrientStore
 from darwin.water import Stream
+from darwin.water.stream import Nutrient, NutrientType
 
 logger = logging.getLogger("darwin.flora.prodigal")
 
@@ -40,7 +38,7 @@ class ProdigalPlant(Organism):
     def can_grow(self) -> bool:
         return self.soil.has_prodigal
 
-    async def grow(self, nutrient: Nutrient) -> Optional[Nutrient]:
+    async def grow(self, nutrient: Nutrient) -> Nutrient | None:
         """
         Run Prodigal on the genome.
 
@@ -73,11 +71,16 @@ class ProdigalPlant(Organism):
             # Run prodigal
             cmd = [
                 "prodigal",
-                "-i", str(input_fasta),
-                "-o", str(output_gff),
-                "-f", "gff",
-                "-a", str(output_proteins),
-                "-g", str(translation_table),
+                "-i",
+                str(input_fasta),
+                "-o",
+                str(output_gff),
+                "-f",
+                "gff",
+                "-a",
+                str(output_proteins),
+                "-g",
+                str(translation_table),
             ]
             if metagenome:
                 cmd.extend(["-p", "meta"])
@@ -90,9 +93,7 @@ class ProdigalPlant(Organism):
             stdout, stderr = await proc.communicate()
 
             if proc.returncode != 0:
-                raise RuntimeError(
-                    f"Prodigal failed (exit {proc.returncode}): {stderr.decode()}"
-                )
+                raise RuntimeError(f"Prodigal failed (exit {proc.returncode}): {stderr.decode()}")
 
             # Parse GFF output
             features = self._parse_gff(output_gff, locus_prefix)
@@ -151,17 +152,19 @@ class ProdigalPlant(Organism):
                 strand = Strand.FORWARD if parts[6] == "+" else Strand.REVERSE
                 locus_tag = f"{locus_prefix}_{gene_num:05d}"
 
-                features.append(Feature(
-                    type=FeatureType.CDS,
-                    start=start,
-                    end=end,
-                    strand=strand,
-                    score=score,
-                    contig_id=contig_id,
-                    locus_tag=locus_tag,
-                    product="hypothetical protein",
-                    inference="ab initio prediction:Prodigal",
-                ))
+                features.append(
+                    Feature(
+                        type=FeatureType.CDS,
+                        start=start,
+                        end=end,
+                        strand=strand,
+                        score=score,
+                        contig_id=contig_id,
+                        locus_tag=locus_tag,
+                        product="hypothetical protein",
+                        inference="ab initio prediction:Prodigal",
+                    )
+                )
 
         return features
 
@@ -171,7 +174,6 @@ class ProdigalPlant(Organism):
         if not protein_path.exists():
             return translations
 
-        current_tag = ""
         current_seq: list[str] = []
 
         # Prodigal headers look like: >contig_1_1 # 1 # 200 # 1 # ...

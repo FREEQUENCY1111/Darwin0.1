@@ -16,27 +16,24 @@ Then you wait for equilibrium.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
 import uuid
 from pathlib import Path
-from typing import Optional
 
-from darwin.water.stream import Stream, Nutrient, NutrientType
-from darwin.water.cycle import WaterCycle
-from darwin.soil.nutrients import NutrientStore
-from darwin.rocks.models import Genome, AnnotationConfig
-from darwin.rocks.fasta import parse_fasta
-
-from darwin.flora.prodigal import ProdigalPlant
-from darwin.flora.pyhmmer_plant import PyhmmerPlant
 from darwin.flora.aragorn import AragornPlant
 from darwin.flora.barrnap import BarrnapPlant
-
-from darwin.microbiome.scrutinizer import Scrutinizer
+from darwin.flora.base import Organism
+from darwin.flora.prodigal import ProdigalPlant
+from darwin.flora.pyhmmer_plant import PyhmmerPlant
 from darwin.microbiome.enricher import Enricher
+from darwin.microbiome.scrutinizer import Scrutinizer
 from darwin.microbiome.synthesizer import Synthesizer
+from darwin.rocks.fasta import parse_fasta
+from darwin.rocks.models import AnnotationConfig, Genome
+from darwin.soil.nutrients import NutrientStore
+from darwin.water.cycle import WaterCycle
+from darwin.water.stream import Nutrient, NutrientType, Stream
 
 logger = logging.getLogger("darwin.jar")
 
@@ -51,7 +48,7 @@ class Ecosphere:
         # That's it. Equilibrium happens naturally.
     """
 
-    def __init__(self, config: Optional[AnnotationConfig] = None) -> None:
+    def __init__(self, config: AnnotationConfig | None = None) -> None:
         # The water — everything flows through this
         self.stream = Stream()
 
@@ -63,11 +60,11 @@ class Ecosphere:
         self.config = config
 
         # Water cycle observer
-        self._cycle: Optional[WaterCycle] = None
+        self._cycle: WaterCycle | None = None
 
         # The organisms — they'll be planted when the jar is sealed
-        self._flora = []
-        self._microbiome = []
+        self._flora: list[Organism] = []
+        self._microbiome: list[Organism] = []
         self._sealed = False
 
         # Fill the jar with life
@@ -113,8 +110,8 @@ class Ecosphere:
 
     async def add_sunlight(
         self,
-        fasta_path: Optional[Path] = None,
-        genome: Optional[Genome] = None,
+        fasta_path: Path | None = None,
+        genome: Genome | None = None,
     ) -> dict:
         """
         Add sunlight to the jar — this starts everything.
@@ -159,12 +156,14 @@ class Ecosphere:
         start_time = time.time()
 
         # Release the genome into the water — this triggers EVERYTHING
-        await self.stream.release(Nutrient(
-            type=NutrientType.GENOME_LOADED,
-            data={"genome": genome, "config": config_dict},
-            source="sunlight",
-            correlation_id=correlation_id,
-        ))
+        await self.stream.release(
+            Nutrient(
+                type=NutrientType.GENOME_LOADED,
+                data={"genome": genome, "config": config_dict},
+                source="sunlight",
+                correlation_id=correlation_id,
+            )
+        )
 
         # Wait for equilibrium
         reached = await self.stream.wait_for_equilibrium(timeout=600)
