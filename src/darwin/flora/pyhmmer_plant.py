@@ -90,6 +90,9 @@ class PyhmmerPlant(Organism):
                         sequence=seq,
                     ).digitize(alphabet)
                     sequences.append(ds)
+                    # pyhmmer ≥0.12 returns str from hit.name;
+                    # older versions return bytes — store both for safety
+                    tag_map[tag] = tag
                     tag_map[tag.encode()] = tag
                 except Exception:
                     continue
@@ -124,7 +127,9 @@ class PyhmmerPlant(Organism):
                                             f.locus_tag == tag
                                             and f.product == "hypothetical protein"
                                         ):
-                                            f.product = hits.query_name.decode()  # type: ignore[attr-defined]
+                                            # pyhmmer ≥0.12 returns str; older returns bytes
+                                            qname = hits.query.name  # type: ignore[union-attr]
+                                            f.product = qname.decode() if isinstance(qname, bytes) else qname
                                             f.inference = f"protein motif:{hmm_db.name}"
                                             f.score = hit.score
                                             annotated_count += 1
