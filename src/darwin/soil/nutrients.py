@@ -69,10 +69,10 @@ class NutrientStore:
         self._hmm_dbs: list[HMMDatabase] = []
 
         # Register core tools that flora might need
-        for name in ["prodigal", "aragorn", "barrnap", "hmmsearch", "cmscan"]:
+        for name in ["prodigal", "aragorn", "barrnap", "hmmsearch", "cmscan", "mob_recon", "isescan.py"]:
             self._tools[name] = ToolInfo(name=name)
 
-        # Register HMM databases
+        # Register explicitly provided HMM databases
         if hmm_databases:
             for db_path in hmm_databases:
                 db_path = Path(db_path)
@@ -82,6 +82,9 @@ class NutrientStore:
                         path=db_path,
                     )
                 )
+        else:
+            # Auto-discover cached databases from ~/.darwin/databases/
+            self._discover_cached_databases()
 
     def survey(self) -> dict[str, bool]:
         """
@@ -134,8 +137,47 @@ class NutrientStore:
         return bool(t and t.available)
 
     @property
+    def has_mob_suite(self) -> bool:
+        t = self._tools.get("mob_recon")
+        return bool(t and t.available)
+
+    @property
+    def has_isescan(self) -> bool:
+        t = self._tools.get("isescan.py")
+        return bool(t and t.available)
+
+    @property
     def has_hmm(self) -> bool:
         return len(self.get_hmm_databases()) > 0
+
+    def _discover_cached_databases(self) -> None:
+        """Auto-discover HMM databases from standard locations.
+
+        Search order:
+          1. ./databases/          (project-local)
+          2. ~/.darwin/databases/  (user cache)
+        """
+        search_dirs = [
+            Path.cwd() / "databases",
+            Path.home() / ".darwin" / "databases",
+        ]
+        seen: set[str] = set()
+
+        for search_dir in search_dirs:
+            if not search_dir.exists():
+                continue
+            for hmm_file in sorted(search_dir.glob("*.hmm")):
+                # De-duplicate by stem name (prefer first found)
+                if hmm_file.stem in seen:
+                    continue
+                seen.add(hmm_file.stem)
+                self._hmm_dbs.append(
+                    HMMDatabase(
+                        name=hmm_file.stem,
+                        path=hmm_file,
+                    )
+                )
+                logger.info(f"🌱 Auto-discovered DB: {hmm_file.name} ({search_dir})")
 
     @property
     def is_fertile(self) -> bool:

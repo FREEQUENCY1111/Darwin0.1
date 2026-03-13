@@ -1,16 +1,13 @@
 """
 Enricher — Contextual analysis decomposer.
 
-Feeds on: proteins.found + qc.completed
+Feeds on: qc.completed
 Produces: annotation.ready
 
 Like nitrogen-fixing bacteria — takes raw material and
 enriches it with contextual information. Analyzes the genome
-characteristics, hypothetical protein ratio, and generates
-research insights.
-
-This is where Deep Research Bob's wisdom lives now —
-not as a boss, but as a humble microbe doing its thing.
+characteristics, hypothetical protein ratio, metabolic
+markers, potential HGT regions, and generates research insights.
 """
 
 from __future__ import annotations
@@ -24,13 +21,50 @@ from darwin.water.stream import Nutrient, NutrientType, Stream
 
 logger = logging.getLogger("darwin.microbiome.enricher")
 
+# Metabolic marker keywords for lifestyle inference
+METABOLIC_MARKERS = {
+    "aerobic": [
+        "cytochrome c oxidase", "ATP synthase", "NADH dehydrogenase",
+        "succinate dehydrogenase", "cytochrome bc1",
+    ],
+    "anaerobic": [
+        "fumarate reductase", "nitrate reductase", "formate dehydrogenase",
+        "hydrogenase", "ferredoxin",
+    ],
+    "nitrogen_fixing": [
+        "nitrogenase", "nifH", "nifD", "nifK", "nitrogen fixation",
+    ],
+    "phototropic": [
+        "photosystem", "bacteriochlorophyll", "light-harvesting",
+        "reaction center", "RuBisCO",
+    ],
+    "motile": [
+        "flagellin", "flagellar", "chemotaxis", "methyl-accepting",
+        "CheA", "CheY", "MotA", "MotB",
+    ],
+    "sporulating": [
+        "sporulation", "spore coat", "SpoIIE", "SpoVA",
+        "dipicolinate synthase",
+    ],
+    "antibiotic_resistance": [
+        "beta-lactamase", "aminoglycoside", "tetracycline resistance",
+        "chloramphenicol acetyltransferase", "vancomycin resistance",
+        "efflux pump", "multidrug resistance",
+    ],
+    "pathogenicity": [
+        "hemolysin", "adhesin", "invasin", "toxin", "type III secretion",
+        "type IV secretion", "virulence",
+    ],
+}
+
 
 class Enricher(Organism):
     """
     Context enrichment microbe.
 
-    Waits for proteins to be annotated AND QC to pass,
-    then enriches the annotation with contextual analysis.
+    Waits for QC to complete, then enriches the annotation
+    with contextual analysis including metabolic markers,
+    lifestyle inference, and genomic island detection.
     """
 
     name = "enricher"
@@ -56,6 +90,8 @@ class Enricher(Organism):
         cds = genome.features_of_type(FeatureType.CDS)
         trnas = genome.features_of_type(FeatureType.TRNA)
         rrnas = genome.features_of_type(FeatureType.RRNA)
+        crisprs = genome.features_of_type(FeatureType.CRISPR)
+        signal_peptides = genome.features_of_type(FeatureType.SIGNAL_PEPTIDE)
 
         hypothetical = sum(1 for f in cds if f.product == "hypothetical protein")
         hyp_ratio = hypothetical / len(cds) if cds else 0
@@ -82,6 +118,97 @@ class Enricher(Organism):
                 f"Low tRNA count ({len(trnas)}) — genome may be incomplete or highly reduced"
             )
 
+        # CRISPR insights
+        if crisprs:
+            total_spacers = sum(
+                int(s.split("spacers")[0].split(",")[-1].strip())
+                for s in [f.product for f in crisprs]
+                if "spacers" in s
+            )
+            insights.append(
+                f"CRISPR defense: {len(crisprs)} array(s) with "
+                f"~{total_spacers} spacers — active adaptive immunity"
+            )
+
+        # Signal peptide insights
+        if signal_peptides:
+            sp_ratio = len(signal_peptides) / len(cds) * 100 if cds else 0
+            insights.append(
+                f"Secretome: {len(signal_peptides)} signal peptides "
+                f"({sp_ratio:.1f}% of proteins)"
+            )
+
+        # Operon insights
+        operon_genes = sum(1 for f in cds if f.note and "operon=" in f.note)
+        if operon_genes:
+            operon_ids = set()
+            for f in cds:
+                if f.note and "operon=" in f.note:
+                    for part in f.note.split(";"):
+                        if part.startswith("operon="):
+                            operon_ids.add(part.split("=")[1])
+            insights.append(
+                f"Gene organization: {len(operon_ids)} predicted operons "
+                f"({operon_genes} genes)"
+            )
+
+        # Replicon structure insights
+        plasmid_contigs = [c for c in genome.contigs if c.replicon_type == "plasmid"]
+        chromo_contigs = [c for c in genome.contigs if c.replicon_type == "chromosome"]
+        if plasmid_contigs or chromo_contigs:
+            insights.append(
+                f"Replicon structure: {len(chromo_contigs)} chromosome(s), "
+                f"{len(plasmid_contigs)} plasmid(s)"
+            )
+            for pc in plasmid_contigs:
+                details = [f"{pc.length:,} bp"]
+                if pc.rep_type:
+                    details.append(f"replicon: {pc.rep_type}")
+                if pc.mob_type:
+                    details.append(f"mobility: {pc.mob_type}")
+                insights.append(f"  Plasmid {pc.id}: {', '.join(details)}")
+            # Conjugation potential
+            conjugative = [c for c in plasmid_contigs if c.mob_type]
+            if conjugative:
+                insights.append(
+                    f"Conjugation potential: {len(conjugative)} plasmid(s) "
+                    f"with mobilization genes"
+                )
+
+        # Mobile element insights
+        mobile_elements = genome.features_of_type(FeatureType.MOBILE_ELEMENT)
+        if mobile_elements:
+            families = set()
+            for f in mobile_elements:
+                if "IS family:" in f.note:
+                    fam = f.note.split("IS family:")[1].split(";")[0].strip()
+                    families.add(fam)
+            insights.append(
+                f"Mobile elements: {len(mobile_elements)} IS element(s) "
+                f"from {len(families)} family/families"
+                + (f" ({', '.join(sorted(families)[:5])})" if families else "")
+            )
+
+        # Taxonomy insight
+        if genome.taxonomy:
+            insights.append(f"Taxonomic classification: {genome.taxonomy}")
+
+        # Metabolic markers
+        metabolic = self._scan_metabolic_markers(cds)
+        if metabolic:
+            lifestyle = self._infer_lifestyle(metabolic)
+            insights.append(f"Metabolic capabilities: {', '.join(metabolic.keys())}")
+            if lifestyle:
+                insights.append(f"Predicted lifestyle: {lifestyle}")
+
+        # GC island detection (putative HGT)
+        gc_islands = self._detect_gc_islands(genome)
+        if gc_islands:
+            insights.append(
+                f"Putative genomic islands: {len(gc_islands)} regions with "
+                f"aberrant GC content (potential HGT)"
+            )
+
         # Recommendations
         recommendations = self._generate_recommendations(
             genome, cds, trnas, rrnas, hyp_ratio, qc_data
@@ -101,10 +228,14 @@ class Enricher(Organism):
                     "hypothetical_ratio": round(hyp_ratio, 4),
                     "insights": insights,
                     "recommendations": recommendations,
+                    "metabolic_markers": {k: len(v) for k, v in metabolic.items()} if metabolic else {},
+                    "gc_islands": len(gc_islands),
                     "stats": {
                         "total_cds": len(cds),
                         "total_trna": len(trnas),
                         "total_rrna": len(rrnas),
+                        "total_crispr": len(crisprs),
+                        "total_signal_peptides": len(signal_peptides),
                         "hypothetical": hypothetical,
                         "annotated": len(cds) - hypothetical,
                     },
@@ -141,6 +272,72 @@ class Enricher(Organism):
             return f"{gc}% — high GC (Streptomyces-like)"
         else:
             return f"{gc}% — extremely GC-rich"
+
+    def _scan_metabolic_markers(self, cds: list) -> dict[str, list[str]]:
+        """Scan product names for metabolic pathway markers."""
+        found: dict[str, list[str]] = {}
+        for f in cds:
+            product_lower = f.product.lower()
+            for category, keywords in METABOLIC_MARKERS.items():
+                for keyword in keywords:
+                    if keyword.lower() in product_lower:
+                        if category not in found:
+                            found[category] = []
+                        found[category].append(f.product)
+                        break  # one hit per feature per category
+        return found
+
+    def _infer_lifestyle(self, metabolic: dict[str, list[str]]) -> str:
+        """Infer organism lifestyle from metabolic markers."""
+        traits = []
+        if "aerobic" in metabolic:
+            traits.append("aerobic respiration")
+        if "anaerobic" in metabolic:
+            traits.append("anaerobic metabolism")
+        if "nitrogen_fixing" in metabolic:
+            traits.append("nitrogen-fixing")
+        if "phototropic" in metabolic:
+            traits.append("phototrophic")
+        if "motile" in metabolic:
+            traits.append("motile")
+        if "sporulating" in metabolic:
+            traits.append("spore-forming")
+        if "pathogenicity" in metabolic:
+            traits.append("potential pathogen")
+        if "antibiotic_resistance" in metabolic:
+            count = len(metabolic["antibiotic_resistance"])
+            traits.append(f"antibiotic resistance ({count} genes)")
+        return ", ".join(traits) if traits else ""
+
+    def _detect_gc_islands(self, genome: Genome, window_size: int = 5000) -> list[dict]:
+        """
+        Detect regions where GC deviates >8% from genome mean.
+
+        These putative genomic islands may represent HGT events.
+        """
+        islands: list[dict] = []
+        genome_gc = genome.gc_content
+
+        for contig in genome.contigs:
+            seq = contig.sequence.upper()
+            if len(seq) < window_size * 2:
+                continue
+
+            for i in range(0, len(seq) - window_size + 1, window_size // 2):
+                window = seq[i : i + window_size]
+                gc = sum(1 for b in window if b in "GC") / len(window) * 100
+                deviation = abs(gc - genome_gc)
+
+                if deviation > 8.0:
+                    islands.append({
+                        "contig": contig.id,
+                        "start": i + 1,
+                        "end": i + window_size,
+                        "gc": round(gc, 1),
+                        "deviation": round(deviation, 1),
+                    })
+
+        return islands
 
     def _generate_recommendations(
         self,

@@ -9,18 +9,18 @@ from darwin.rocks.models import Feature, FeatureType, Strand
 
 
 class TestGenome:
-    def test_total_length(self, sample_genome):
-        assert sample_genome.total_length == 1700
+    def test_total_length(self, rocks_sample_genome):
+        assert rocks_sample_genome.total_length == 1700
 
-    def test_gc_content(self, sample_genome):
-        gc = sample_genome.gc_content
+    def test_gc_content(self, rocks_sample_genome):
+        gc = rocks_sample_genome.gc_content
         assert 0 < gc < 100
 
-    def test_num_contigs(self, sample_genome):
-        assert sample_genome.num_contigs == 1
+    def test_num_contigs(self, rocks_sample_genome):
+        assert rocks_sample_genome.num_contigs == 1
 
-    def test_summary(self, sample_genome):
-        s = sample_genome.summary()
+    def test_summary(self, rocks_sample_genome):
+        s = rocks_sample_genome.summary()
         assert s["name"] == "test_genome"
         assert s["num_contigs"] == 1
         assert s["total_length_bp"] == 1700
@@ -41,8 +41,8 @@ class TestFeature:
 
 
 class TestFasta:
-    def test_parse_fasta(self, tmp_fasta):
-        genome = parse_fasta(tmp_fasta)
+    def test_parse_fasta(self, rocks_tmp_fasta):
+        genome = parse_fasta(rocks_tmp_fasta)
         assert genome.num_contigs == 1
         assert genome.total_length > 0
 
@@ -50,16 +50,16 @@ class TestFasta:
         with pytest.raises(FileNotFoundError):
             parse_fasta(Path("/nonexistent.fasta"))
 
-    def test_write_fasta(self, sample_genome, tmp_path):
+    def test_write_fasta(self, rocks_sample_genome, tmp_path):
         out = tmp_path / "out.fasta"
-        result = write_fasta(sample_genome, out)
+        result = write_fasta(rocks_sample_genome, out)
         assert result.exists()
         content = result.read_text()
         assert ">contig_1" in content
 
-    def test_write_proteins(self, annotated_genome, tmp_path):
+    def test_write_proteins(self, rocks_annotated_genome, tmp_path):
         out = tmp_path / "proteins.faa"
-        result = write_proteins(annotated_genome, out)
+        result = write_proteins(rocks_annotated_genome, out)
         assert result.exists()
         content = result.read_text()
         assert ">TEST_00001" in content

@@ -29,9 +29,16 @@ class NutrientType(str, Enum):
 
     # Flora produce these
     GENES_CALLED = "genes.called"
+    MINIGENES_FOUND = "minigenes.found"
     PROTEINS_FOUND = "proteins.found"
     TRNA_DETECTED = "trna.detected"
     RRNA_DETECTED = "rrna.detected"
+    CRISPR_DETECTED = "crispr.detected"
+    SIGNAL_PEPTIDES_FOUND = "signal_peptides.found"
+    OPERONS_GROUPED = "operons.grouped"
+    TAXONOMY_INFERRED = "taxonomy.inferred"
+    PLASMIDS_CLASSIFIED = "plasmids.classified"
+    MOBILE_ELEMENTS_FOUND = "mobile_elements.found"
 
     # Microbiome produces these
     QC_COMPLETED = "qc.completed"

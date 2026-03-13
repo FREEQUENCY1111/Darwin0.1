@@ -7,11 +7,16 @@ Produces: proteins.found (annotated proteins with functions)
 Like an epiphyte that grows on other plants — it takes the
 raw gene predictions and enriches them with functional
 annotation from HMM databases.
+
+v0.2: Multi-database search with consensus — loops over ALL
+HMM databases, tracks best hit per protein (lowest E-value wins),
+stores db_xref cross-references.
 """
 
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 
 from darwin.flora.base import Organism
 from darwin.rocks.models import FeatureType, Genome
@@ -19,6 +24,18 @@ from darwin.soil.nutrients import NutrientStore
 from darwin.water.stream import Nutrient, NutrientType, Stream
 
 logger = logging.getLogger("darwin.flora.pyhmmer")
+
+
+@dataclass
+class HMMHit:
+    """Best HMM hit for a protein across all databases."""
+
+    product: str
+    db_name: str
+    accession: str
+    evalue: float
+    score: float
+    db_xref: str  # e.g. "Pfam:PF00001" or "TIGRFAMs:TIGR00123"
 
 
 class PyhmmerPlant(Organism):
@@ -36,14 +53,16 @@ class PyhmmerPlant(Organism):
 
     async def grow(self, nutrient: Nutrient) -> Nutrient | None:
         """
-        Search protein translations against HMM databases.
+        Search protein translations against ALL HMM databases.
 
-        Takes CDS features with translations, runs hmmsearch,
-        and updates product names for hits.
+        Multi-database consensus: tracks best hit per protein
+        across all databases (lowest E-value wins). Stores
+        db_xref cross-references for each hit.
         """
         genome: Genome = nutrient.data["genome"]
         config = nutrient.data.get("config", {})
         evalue = config.get("evalue_threshold", 1e-10)
+        cpus = config.get("cpus", 1)
 
         if not self.can_grow():
             self.logger.info("🏜️ No HMM databases in soil — passing through")
@@ -73,7 +92,8 @@ class PyhmmerPlant(Organism):
                 correlation_id=nutrient.correlation_id,
             )
 
-        annotated_count = 0
+        # Track best hit per protein across ALL databases
+        best_hits: dict[str, HMMHit] = {}
 
         try:
             import pyhmmer
@@ -81,7 +101,7 @@ class PyhmmerPlant(Organism):
             # Build digital sequences from translations
             alphabet = pyhmmer.easel.Alphabet.amino()
             sequences = []
-            tag_map = {}
+            tag_map: dict[str | bytes, str] = {}
 
             for tag, seq in proteins.items():
                 try:
@@ -111,34 +131,88 @@ class PyhmmerPlant(Organism):
                     correlation_id=nutrient.correlation_id,
                 )
 
-            # Search each HMM database
-            for hmm_db in self.soil.get_hmm_databases():
+            # Search ALL HMM databases and collect best hits
+            hmm_databases = self.soil.get_hmm_databases()
+            for hmm_db in hmm_databases:
                 self.logger.info(f"  Searching {hmm_db.name}...")
+                db_hits = 0
 
                 with pyhmmer.plan7.HMMFile(str(hmm_db.path)) as hmm_file:
-                    for hits in pyhmmer.hmmsearch(hmm_file, sequences, E=evalue):  # type: ignore[arg-type]
+                    for hits in pyhmmer.hmmsearch(
+                        hmm_file, sequences, E=evalue, cpus=cpus
+                    ):  # type: ignore[arg-type]
                         for hit in hits:
                             if hit.included:
                                 tag = tag_map.get(hit.name, "")  # type: ignore[call-overload]
-                                if tag:
-                                    # Find and update the feature
+                                if not tag:
+                                    continue
+
+                                # pyhmmer ≥0.12 returns str; older returns bytes
+                                qname = hits.query.name  # type: ignore[union-attr]
+                                product = qname.decode() if isinstance(qname, bytes) else qname
+
+                                # Build accession and db_xref
+                                qacc = getattr(hits.query, "accession", None)
+                                if qacc:
+                                    acc = qacc.decode() if isinstance(qacc, bytes) else qacc
+                                else:
+                                    acc = product
+
+                                # Determine db_xref prefix from db name
+                                db_prefix = hmm_db.name
+                                if "pfam" in db_prefix.lower() or "pf" in db_prefix.lower():
+                                    db_prefix = "Pfam"
+                                elif "tigr" in db_prefix.lower():
+                                    db_prefix = "TIGRFAMs"
+
+                                db_xref = f"{db_prefix}:{acc}"
+
+                                # Keep best hit per protein (lowest E-value)
+                                existing = best_hits.get(tag)
+                                if existing is None or hit.evalue < existing.evalue:
+                                    best_hits[tag] = HMMHit(
+                                        product=product,
+                                        db_name=hmm_db.name,
+                                        accession=acc,
+                                        evalue=hit.evalue,
+                                        score=hit.score,
+                                        db_xref=db_xref,
+                                    )
+                                elif (
+                                    existing is not None
+                                    and hit.evalue <= existing.evalue * 10
+                                    and db_xref != existing.db_xref
+                                ):
+                                    # Similar E-value from different DB — note both
                                     for f in cds_features:
-                                        if (
-                                            f.locus_tag == tag
-                                            and f.product == "hypothetical protein"
-                                        ):
-                                            # pyhmmer ≥0.12 returns str; older returns bytes
-                                            qname = hits.query.name  # type: ignore[union-attr]
-                                            f.product = qname.decode() if isinstance(qname, bytes) else qname
-                                            f.inference = f"protein motif:{hmm_db.name}"
-                                            f.score = hit.score
-                                            annotated_count += 1
+                                        if f.locus_tag == tag:
+                                            if db_xref not in f.db_xref:
+                                                f.db_xref.append(db_xref)
                                             break
+
+                                db_hits += 1
+
+                self.logger.info(f"    {db_hits} included hits from {hmm_db.name}")
+
+            # Apply best hits to features
+            annotated_count = 0
+            for tag, hmm_hit in best_hits.items():
+                for f in cds_features:
+                    if f.locus_tag == tag and f.product == "hypothetical protein":
+                        f.product = hmm_hit.product
+                        f.inference = f"protein motif:{hmm_hit.db_name}"
+                        f.score = hmm_hit.score
+                        if hmm_hit.db_xref not in f.db_xref:
+                            f.db_xref.insert(0, hmm_hit.db_xref)
+                        annotated_count += 1
+                        break
 
         except ImportError:
             self.logger.warning("pyhmmer not installed — skipping HMM search")
+            annotated_count = 0
         except Exception as e:
             self.logger.error(f"HMM search failed: {e}")
+            annotated_count = 0
 
         hypothetical = sum(1 for f in cds_features if f.product == "hypothetical protein")
         self.logger.info(

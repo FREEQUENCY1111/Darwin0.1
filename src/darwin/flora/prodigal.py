@@ -101,15 +101,17 @@ class ProdigalPlant(Organism):
             # Parse protein translations
             translations = self._parse_proteins(output_proteins)
 
+            # Attach translations to features by index
+            # (Prodigal guarantees same ordering in GFF and protein FASTA)
+            for i, feature in enumerate(features):
+                if i < len(translations):
+                    feature.translation = translations[i]
+
             # Attach features to contigs
             gene_count = 0
             for feature in features:
-                # Find matching contig
                 for contig in genome.contigs:
                     if contig.id == feature.contig_id:
-                        # Attach translation if available
-                        if feature.locus_tag in translations:
-                            feature.translation = translations[feature.locus_tag]
                         contig.features.append(feature)
                         gene_count += 1
                         break
@@ -168,11 +170,10 @@ class ProdigalPlant(Organism):
 
         return features
 
-    def _parse_proteins(self, protein_path: Path) -> dict[str, str]:
-        """Parse Prodigal protein FASTA, map back to locus tags."""
-        translations: dict[str, str] = {}
+    def _parse_proteins(self, protein_path: Path) -> list[str]:
+        """Parse Prodigal protein FASTA, return translations in GFF order."""
         if not protein_path.exists():
-            return translations
+            return []
 
         current_seq: list[str] = []
 
@@ -194,4 +195,4 @@ class ProdigalPlant(Organism):
 
         # Map to locus tags by index
         # (assumes same ordering as GFF, which Prodigal guarantees)
-        return {f"seq_{i}": seq for i, seq in enumerate(seqs)}
+        return seqs

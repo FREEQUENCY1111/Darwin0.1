@@ -19,7 +19,7 @@ import logging
 from dataclasses import dataclass
 
 from darwin.flora.base import Organism
-from darwin.rocks.models import FeatureType, Genome
+from darwin.rocks.models import FeatureType, Genome, Strand
 from darwin.soil.nutrients import NutrientStore
 from darwin.water.stream import Nutrient, NutrientType, Stream
 
@@ -52,6 +52,8 @@ class Scrutinizer(Organism):
         NutrientType.PROTEINS_FOUND,
         NutrientType.TRNA_DETECTED,
         NutrientType.RRNA_DETECTED,
+        NutrientType.PLASMIDS_CLASSIFIED,
+        NutrientType.MOBILE_ELEMENTS_FOUND,
     ]
     produces_nutrients = [NutrientType.QC_COMPLETED]
 
@@ -63,6 +65,11 @@ class Scrutinizer(Organism):
             NutrientType.TRNA_DETECTED,
             NutrientType.RRNA_DETECTED,
         }
+        # Optionally wait for plasmid/IS signals if tools are available
+        if self.soil.has_mob_suite:
+            self._expected_signals.add(NutrientType.PLASMIDS_CLASSIFIED)
+        if self.soil.has_isescan:
+            self._expected_signals.add(NutrientType.MOBILE_ELEMENTS_FOUND)
 
     def plant(self) -> None:
         """Custom planting — we need to collect multiple signals."""
@@ -109,6 +116,26 @@ class Scrutinizer(Organism):
 
         # 6. Overlapping features check
         checks.append(self._check_overlaps(genome))
+
+        # 7. rRNA length validation
+        checks.append(self._check_rrna_lengths(genome))
+
+        # 8. Start codon distribution
+        checks.append(self._check_start_codon_distribution(genome))
+
+        # 9. Strand bias
+        checks.append(self._check_strand_bias(genome))
+
+        # 10. rRNA copy number
+        checks.append(self._check_rrna_copy_number(genome))
+
+        # 11. IS element density (if ISEScan ran)
+        if NutrientType.MOBILE_ELEMENTS_FOUND.value in self._signals_received:
+            checks.append(self._check_is_element_density(genome))
+
+        # 12. Plasmid classification report (if MOB-suite ran)
+        if NutrientType.PLASMIDS_CLASSIFIED.value in self._signals_received:
+            checks.append(self._check_plasmid_classification(genome))
 
         passed = sum(1 for c in checks if c.passed)
         total = len(checks)
@@ -265,4 +292,185 @@ class Scrutinizer(Organism):
             expected_range="<15% of features",
             message=f"{total_overlaps} overlapping features ({overlap_pct:.1f}%)",
             severity="warning" if not passed else "info",
+        )
+
+    def _check_rrna_lengths(self, genome: Genome) -> QCCheck:
+        """Validate rRNA feature lengths against expected ranges."""
+        rrnas = genome.features_of_type(FeatureType.RRNA)
+        if not rrnas:
+            return QCCheck(
+                name="rrna_lengths",
+                passed=True,
+                value=0,
+                expected_range="16S:1400-1600, 23S:2800-3000, 5S:100-150",
+                message="No rRNAs to validate",
+                severity="info",
+            )
+
+        expected_ranges = {
+            "16S": (1400, 1600),
+            "23S": (2800, 3000),
+            "5S": (100, 150),
+        }
+        issues = []
+        checked = 0
+        for f in rrnas:
+            for rtype, (rmin, rmax) in expected_ranges.items():
+                if rtype in f.product:
+                    checked += 1
+                    if not (rmin <= f.length <= rmax):
+                        issues.append(f"{rtype}={f.length}bp (expect {rmin}-{rmax})")
+
+        passed = len(issues) == 0
+        return QCCheck(
+            name="rrna_lengths",
+            passed=passed,
+            value=checked - len(issues),
+            expected_range="16S:1400-1600, 23S:2800-3000, 5S:100-150",
+            message=f"{checked} rRNAs checked, {len(issues)} out of range"
+            + (f": {', '.join(issues)}" if issues else ""),
+            severity="warning" if not passed else "info",
+        )
+
+    def _check_start_codon_distribution(self, genome: Genome) -> QCCheck:
+        """Check ATG/GTG/TTG start codon ratios (expect ~80/10/10)."""
+        cds = genome.features_of_type(FeatureType.CDS)
+        if not cds:
+            return QCCheck(
+                name="start_codon_dist",
+                passed=True,
+                value=0,
+                expected_range="ATG ~80%, GTG ~10%, TTG ~10%",
+                message="No CDS to check",
+                severity="info",
+            )
+
+        counts: dict[str, int] = {"ATG": 0, "GTG": 0, "TTG": 0, "other": 0}
+        for f in cds:
+            # Extract start codon from the contig sequence
+            for contig in genome.contigs:
+                if contig.id == f.contig_id:
+                    if f.strand == Strand.FORWARD:
+                        codon = contig.sequence[f.start - 1 : f.start + 2].upper()
+                    else:
+                        # Reverse complement of last 3 bases
+                        nuc = contig.sequence[f.end - 3 : f.end]
+                        comp = str.maketrans("ATCGatcg", "TAGCtagc")
+                        codon = nuc.translate(comp)[::-1].upper()
+                    if codon in counts:
+                        counts[codon] += 1
+                    else:
+                        counts["other"] += 1
+                    break
+
+        total = sum(counts.values())
+        if total == 0:
+            return QCCheck(
+                name="start_codon_dist",
+                passed=True,
+                value=0,
+                expected_range="ATG ~80%, GTG ~10%, TTG ~10%",
+                message="Could not extract start codons",
+                severity="info",
+            )
+
+        atg_pct = counts["ATG"] / total * 100
+        # ATG should dominate (~80%), but 50-95% is acceptable
+        passed = 50 <= atg_pct <= 95
+        dist = ", ".join(f"{k}:{v}" for k, v in counts.items() if v > 0)
+        return QCCheck(
+            name="start_codon_dist",
+            passed=passed,
+            value=round(atg_pct, 1),
+            expected_range="ATG 50-95%",
+            message=f"ATG={atg_pct:.1f}% ({dist})",
+            severity="warning" if not passed else "info",
+        )
+
+    def _check_strand_bias(self, genome: Genome) -> QCCheck:
+        """Check CDS should be roughly balanced across strands (40-60%)."""
+        cds = genome.features_of_type(FeatureType.CDS)
+        if not cds:
+            return QCCheck(
+                name="strand_bias",
+                passed=True,
+                value=0,
+                expected_range="40-60% per strand",
+                message="No CDS to check",
+                severity="info",
+            )
+
+        fwd = sum(1 for f in cds if f.strand == Strand.FORWARD)
+        fwd_pct = fwd / len(cds) * 100
+        passed = 30 <= fwd_pct <= 70  # generous range
+        return QCCheck(
+            name="strand_bias",
+            passed=passed,
+            value=round(fwd_pct, 1),
+            expected_range="30-70% forward strand",
+            message=f"{fwd_pct:.1f}% forward ({fwd}/{len(cds)})",
+            severity="warning" if not passed else "info",
+        )
+
+    def _check_rrna_copy_number(self, genome: Genome) -> QCCheck:
+        """Check 16S rRNA copy number vs expected for genome size."""
+        rrnas = genome.features_of_type(FeatureType.RRNA)
+        copies_16s = sum(1 for f in rrnas if "16S" in f.product)
+
+        # Expected copies based on genome size (rough guide)
+        mb = genome.total_length / 1_000_000
+        if mb < 1:
+            expected = "1-2"
+            passed = 1 <= copies_16s <= 3
+        elif mb < 3:
+            expected = "1-7"
+            passed = 1 <= copies_16s <= 10
+        elif mb < 6:
+            expected = "3-10"
+            passed = 1 <= copies_16s <= 15
+        else:
+            expected = "5-15"
+            passed = 1 <= copies_16s <= 20
+
+        return QCCheck(
+            name="rrna_copy_number",
+            passed=passed,
+            value=copies_16s,
+            expected_range=f"{expected} copies for {mb:.1f} Mb genome",
+            message=f"{copies_16s} copies of 16S rRNA for {mb:.1f} Mb genome",
+            severity="warning" if not passed else "info",
+        )
+
+    def _check_is_element_density(self, genome: Genome) -> QCCheck:
+        """Check IS element density — warn if >50/Mb (possible misassembly)."""
+        is_elements = genome.features_of_type(FeatureType.MOBILE_ELEMENT)
+        mb = genome.total_length / 1_000_000
+        density = len(is_elements) / mb if mb > 0 else 0
+        passed = density <= 50
+        return QCCheck(
+            name="is_element_density",
+            passed=passed,
+            value=round(density, 1),
+            expected_range="<=50 IS/Mb",
+            message=f"{density:.1f} IS elements/Mb ({len(is_elements)} in {mb:.1f} Mb)",
+            severity="warning" if not passed else "info",
+        )
+
+    def _check_plasmid_classification(self, genome: Genome) -> QCCheck:
+        """Report plasmid classification results."""
+        plasmids = [c for c in genome.contigs if c.replicon_type == "plasmid"]
+        chromosomes = [c for c in genome.contigs if c.replicon_type == "chromosome"]
+        unclassified = [c for c in genome.contigs if not c.replicon_type]
+        total = genome.num_contigs
+        # Always passes — informational check
+        return QCCheck(
+            name="plasmid_classification",
+            passed=True,
+            value=len(plasmids),
+            expected_range="informational",
+            message=(
+                f"{len(plasmids)} plasmid(s), {len(chromosomes)} chromosomal, "
+                f"{len(unclassified)} unclassified out of {total} contigs"
+            ),
+            severity="info",
         )

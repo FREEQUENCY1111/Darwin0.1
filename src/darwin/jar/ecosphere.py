@@ -24,8 +24,15 @@ from pathlib import Path
 from darwin.flora.aragorn import AragornPlant
 from darwin.flora.barrnap import BarrnapPlant
 from darwin.flora.base import Organism
+from darwin.flora.crispard import CRISPARd
+from darwin.flora.isescan_plant import ISEScanPlant
+from darwin.flora.minigene import MiniGeneHunter
+from darwin.flora.mob_suite_plant import MobSuitePlant
+from darwin.flora.operons import OperonGrouper
+from darwin.flora.phylo_16s import PhyloIdentifier
 from darwin.flora.prodigal import ProdigalPlant
 from darwin.flora.pyhmmer_plant import PyhmmerPlant
+from darwin.flora.signal_scanner import SignalScanner
 from darwin.microbiome.enricher import Enricher
 from darwin.microbiome.scrutinizer import Scrutinizer
 from darwin.microbiome.synthesizer import Synthesizer
@@ -85,10 +92,20 @@ class Ecosphere:
 
         # Plant the flora (producers)
         self._flora = [
+            # Primary producers (feed on GENOME_LOADED)
             ProdigalPlant(self.stream, self.soil),
-            PyhmmerPlant(self.stream, self.soil),
             AragornPlant(self.stream, self.soil),
             BarrnapPlant(self.stream, self.soil),
+            CRISPARd(self.stream, self.soil),
+            MobSuitePlant(self.stream, self.soil),
+            ISEScanPlant(self.stream, self.soil),
+            # Secondary producers (feed on GENES_CALLED)
+            PyhmmerPlant(self.stream, self.soil),
+            MiniGeneHunter(self.stream, self.soil),
+            SignalScanner(self.stream, self.soil),
+            OperonGrouper(self.stream, self.soil),
+            # Tertiary producers (feed on RRNA_DETECTED)
+            PhyloIdentifier(self.stream, self.soil),
         ]
 
         # Introduce the microbiome (decomposers)
@@ -150,6 +167,7 @@ class Ecosphere:
                 "locus_tag_prefix": self.config.locus_tag_prefix,
                 "evalue_threshold": self.config.evalue_threshold,
                 "output_dir": str(self.config.output_dir),
+                "cpus": self.config.cpus,
             }
 
         logger.info(f"☀️ Sunlight entering the jar: {genome.name}")
@@ -187,6 +205,27 @@ class Ecosphere:
         """Observe nutrients flowing — just watching, not interfering."""
         if self._cycle:
             self._cycle.record(nutrient)
+
+        # Save checkpoints at key stages
+        checkpoint_stages = {
+            NutrientType.GENES_CALLED: "genes_called",
+            NutrientType.PROTEINS_FOUND: "proteins_found",
+            NutrientType.QC_COMPLETED: "qc_completed",
+        }
+        if nutrient.type in checkpoint_stages and "genome" in (nutrient.data or {}):
+            output_dir = self.config.output_dir if self.config else Path("darwin_output")
+            try:
+                from darwin.jar.checkpoint import save_checkpoint
+
+                save_checkpoint(
+                    genome=nutrient.data["genome"],
+                    stage=checkpoint_stages[nutrient.type],
+                    output_dir=output_dir,
+                    config=nutrient.data.get("config", {}),
+                    metadata={"source": nutrient.source},
+                )
+            except Exception as e:
+                logger.debug(f"Checkpoint save failed (non-critical): {e}")
 
     def _collect_results(self) -> dict:
         """Read the sediment to find what was produced."""

@@ -26,6 +26,7 @@ class FeatureType(str, Enum):
     REPEAT = "repeat_region"
     CRISPR = "CRISPR"
     SIGNAL_PEPTIDE = "signal_peptide"
+    MOBILE_ELEMENT = "mobile_element"
     MISC = "misc_feature"
 
 
@@ -66,6 +67,12 @@ class Contig:
     sequence: str
     description: str = ""
     features: list[Feature] = field(default_factory=list)
+
+    # Replicon classification (populated by MobSuitePlant)
+    replicon_type: str = ""        # "chromosome" | "plasmid" | "" (unclassified)
+    mob_type: str = ""             # MOB-suite mobility class (MOBP, MOBF, etc.)
+    rep_type: str = ""             # Replicon incompatibility type (IncF, ColE1, etc.)
+    is_circular: bool | None = None  # None = unknown
 
     @property
     def length(self) -> int:
@@ -125,6 +132,8 @@ class Genome:
         by_type: dict[str, int] = {}
         for f in features:
             by_type[f.type.value] = by_type.get(f.type.value, 0) + 1
+        plasmid_count = sum(1 for c in self.contigs if c.replicon_type == "plasmid")
+        is_count = by_type.get(FeatureType.MOBILE_ELEMENT.value, 0)
         return {
             "name": self.name,
             "organism": self.organism,
@@ -133,6 +142,8 @@ class Genome:
             "gc_content": self.gc_content,
             "total_features": len(features),
             "features_by_type": by_type,
+            "plasmid_count": plasmid_count,
+            "is_element_count": is_count,
         }
 
 

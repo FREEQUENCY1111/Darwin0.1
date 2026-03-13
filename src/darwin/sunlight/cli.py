@@ -50,6 +50,7 @@ def cli() -> None:
     "--hmm-db", multiple=True, type=click.Path(exists=True, path_type=Path), help="HMM database(s)"
 )
 @click.option("--metagenome", is_flag=True, help="Metagenome mode (Prodigal -p meta)")
+@click.option("--resume", is_flag=True, help="Resume from checkpoint if available")
 def annotate(
     fasta: Path,
     output: Path,
@@ -60,6 +61,7 @@ def annotate(
     cpus: int,
     hmm_db: tuple,
     metagenome: bool,
+    resume: bool,
 ) -> None:
     """Annotate a prokaryotic genome.
 
@@ -92,6 +94,21 @@ def annotate(
             border_style="green",
         )
     )
+
+    # Check for resume
+    if resume:
+        from darwin.jar.checkpoint import list_checkpoints
+
+        checkpoints = list_checkpoints(output)
+        if checkpoints:
+            latest = checkpoints[-1]
+            console.print(
+                f"[yellow]💾 Found checkpoint: {latest['stage']} "
+                f"({latest['saved_at']})[/yellow]"
+            )
+            console.print("[yellow]   Resuming from checkpoint...[/yellow]")
+        else:
+            console.print("[dim]No checkpoints found — starting fresh.[/dim]")
 
     # Build the jar and add sunlight
     jar = Ecosphere(config)
@@ -136,6 +153,61 @@ def serve(host: str, port: int) -> None:
 
     app = create_app()
     uvicorn.run(app, host=host, port=port)
+
+
+@cli.command()
+@click.option("--pfam", is_flag=True, help="Download Pfam-A database")
+@click.option("--tigrfams", is_flag=True, help="Download TIGRFAMs database")
+@click.option("--all", "download_all_dbs", is_flag=True, help="Download all databases")
+@click.option("--force", is_flag=True, help="Re-download even if cached")
+def setup(pfam: bool, tigrfams: bool, download_all_dbs: bool, force: bool) -> None:
+    """Download and prepare HMM databases.
+
+    Fetches databases to ~/.darwin/databases/ so they're
+    automatically available for annotation runs.
+
+    \b
+    Example:
+        darwin setup --all
+        darwin setup --pfam --tigrfams
+    """
+    from darwin.soil.downloader import download_all, download_database, get_cache_dir
+
+    console.print(
+        Panel.fit(
+            f"[bold cyan]Database Setup[/bold cyan]\nCache: {get_cache_dir()}",
+            title="🌱 Enriching the Soil",
+            border_style="cyan",
+        )
+    )
+
+    if download_all_dbs or (not pfam and not tigrfams):
+        # Default: download all if nothing specified
+        if not download_all_dbs and not pfam and not tigrfams:
+            console.print("[dim]No database specified — downloading all.[/dim]")
+        results = download_all(force=force)
+        if results:
+            console.print(f"\n[green]✅ {len(results)} database(s) ready![/green]")
+        else:
+            console.print("\n[red]❌ No databases downloaded.[/red]")
+        return
+
+    downloaded = []
+    if pfam:
+        path = download_database("pfam", force=force)
+        if path:
+            downloaded.append(path)
+            console.print(f"[green]✅ Pfam-A ready: {path}[/green]")
+    if tigrfams:
+        path = download_database("tigrfams", force=force)
+        if path:
+            downloaded.append(path)
+            console.print(f"[green]✅ TIGRFAMs ready: {path}[/green]")
+
+    if downloaded:
+        console.print(f"\n[green]✅ {len(downloaded)} database(s) ready![/green]")
+    else:
+        console.print("\n[red]❌ No databases downloaded.[/red]")
 
 
 @cli.command()
@@ -229,3 +301,69 @@ def _display_results(result: dict) -> None:
         console.print(f"\n[red]☠️ {len(errors)} toxins detected in the water[/red]")
         for err in errors:
             console.print(f"  [red]• {err}[/red]")
+
+
+@cli.command()
+@click.argument("genome1", type=click.Path(exists=True, path_type=Path))
+@click.argument("genome2", type=click.Path(exists=True, path_type=Path))
+@click.option("-k", "--kmer-size", default=16, type=int, help="K-mer size (default: 16)")
+@click.option(
+    "-s", "--sketch-size", default=10000, type=int, help="Sketch size (default: 10000)"
+)
+def compare(genome1: Path, genome2: Path, kmer_size: int, sketch_size: int) -> None:
+    """Compare two genomes and estimate ANI.
+
+    Uses k-mer Jaccard similarity to approximate Average
+    Nucleotide Identity. Species threshold: ANI ≥ 95%.
+
+    \b
+    Example:
+        darwin compare genome1.fna genome2.fna
+    """
+    from darwin.utils.ani import compare_genomes
+
+    console.print(
+        Panel.fit(
+            f"[bold cyan]Genome Comparison[/bold cyan]\n"
+            f"Genome 1: {genome1}\n"
+            f"Genome 2: {genome2}\n"
+            f"k={kmer_size}, sketch={sketch_size}",
+            title="🔬 ANI Estimation",
+            border_style="cyan",
+        )
+    )
+
+    try:
+        result = compare_genomes(genome1, genome2, k=kmer_size, sketch_size=sketch_size)
+    except Exception as e:
+        console.print(f"[bold red]☠️ Comparison failed: {e}[/bold red]")
+        sys.exit(1)
+
+    # Display results
+    g1 = result["genome1"]
+    g2 = result["genome2"]
+    comp = result["comparison"]
+
+    info_table = Table(title="🪨 Genome Information")
+    info_table.add_column("", style="dim")
+    info_table.add_column("Genome 1", style="cyan")
+    info_table.add_column("Genome 2", style="green")
+    info_table.add_row("Name", g1["name"], g2["name"])
+    info_table.add_row("Length", f"{g1['length_bp']:,} bp", f"{g2['length_bp']:,} bp")
+    info_table.add_row("Contigs", str(g1["contigs"]), str(g2["contigs"]))
+    info_table.add_row("GC%", f"{g1['gc_content']}%", f"{g2['gc_content']}%")
+    info_table.add_row("K-mers", f"{g1['kmers']:,}", f"{g2['kmers']:,}")
+    console.print(info_table)
+
+    result_table = Table(title="🔬 ANI Results")
+    result_table.add_column("Metric", style="cyan")
+    result_table.add_column("Value", style="white")
+    result_table.add_row("Jaccard similarity", f"{comp['jaccard_similarity']:.6f}")
+    result_table.add_row("Approximate ANI", f"{comp['approximate_ani']:.2f}%")
+    result_table.add_row("Shared k-mers", f"{comp['shared_kmers']:,}")
+
+    same = comp["same_species"]
+    verdict = "[green]✅ Same species[/green]" if same else "[red]❌ Different species[/red]"
+    result_table.add_row("Species call", verdict)
+    result_table.add_row("Threshold", comp["threshold"])
+    console.print(result_table)
