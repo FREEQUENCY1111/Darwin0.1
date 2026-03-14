@@ -1,7 +1,7 @@
 """
 PhiSpyPlant — Prophage detection and annotation.
 
-Feeds on: genome.loaded (raw sequence data)
+Feeds on: genes.called (needs CDS features for accurate detection)
 Produces: prophages.detected (prophage region annotations)
 
 Like bacteriophages lying dormant in a jar — integrated into the
@@ -9,6 +9,10 @@ host genome as prophages, waiting for the signal to wake up.
 PhiSpy uses a combination of features (gene length, strand switching,
 AT/GC skew, protein similarity) to detect these integrated viral
 genomes lurking within the bacterial chromosome.
+
+PhiSpy REQUIRES annotated genes in GenBank format — running it on
+bare sequence produces "no ORFs predicted" errors. So we feed on
+GENES_CALLED (after Prodigal) rather than GENOME_LOADED.
 
 Uses PhiSpy for prophage region detection.
 Install: conda install -c bioconda phispy
@@ -34,7 +38,7 @@ class PhiSpyPlant(Organism):
     """PhiSpy prophage detection — finding dormant viruses."""
 
     name = "phispy"
-    feeds_on_nutrients = [NutrientType.GENOME_LOADED]
+    feeds_on_nutrients = [NutrientType.GENES_CALLED]
     produces_nutrients = [NutrientType.PROPHAGES_DETECTED]
 
     def __init__(self, stream: Stream, soil: NutrientStore) -> None:

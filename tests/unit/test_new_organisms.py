@@ -853,6 +853,13 @@ class TestABRicatePlant:
 
 
 class TestPhiSpyPlant:
+    def test_feeds_on_genes_called(self):
+        """PhiSpy must wait for gene calling (needs CDS in GenBank)."""
+        from darwin.flora.phispy_plant import PhiSpyPlant
+
+        assert NutrientType.GENES_CALLED in PhiSpyPlant.feeds_on_nutrients
+        assert NutrientType.GENOME_LOADED not in PhiSpyPlant.feeds_on_nutrients
+
     def test_write_minimal_genbank(self):
         """Test minimal GenBank generation for PhiSpy."""
         from darwin.flora.phispy_plant import PhiSpyPlant

@@ -105,9 +105,22 @@ class GeccoPlant(Organism):
 
             if proc.returncode != 0:
                 err_msg = stderr.decode()[:500]
-                self.logger.warning(
-                    f"⚠️ GECCO failed (exit {proc.returncode}): {err_msg}"
-                )
+                # Negative exit codes mean killed by signal (e.g. -4 = SIGILL)
+                if proc.returncode < 0:
+                    import signal as _sig
+                    try:
+                        sig_name = _sig.Signals(-proc.returncode).name
+                    except (ValueError, AttributeError):
+                        sig_name = f"signal {-proc.returncode}"
+                    self.logger.warning(
+                        f"⚠️ GECCO crashed ({sig_name}) — this may be a "
+                        f"platform compatibility issue (e.g. ARM Mac). "
+                        f"Try: conda install -c conda-forge -c bioconda gecco"
+                    )
+                else:
+                    self.logger.warning(
+                        f"⚠️ GECCO failed (exit {proc.returncode}): {err_msg}"
+                    )
                 return Nutrient(
                     type=NutrientType.BGC_DETECTED,
                     data={

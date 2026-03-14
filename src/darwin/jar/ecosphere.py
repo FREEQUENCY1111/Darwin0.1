@@ -103,9 +103,9 @@ class Ecosphere:
             MobSuitePlant(self.stream, self.soil),
             ISEScanPlant(self.stream, self.soil),
             ABRicatePlant(self.stream, self.soil),
-            PhiSpyPlant(self.stream, self.soil),
             GeccoPlant(self.stream, self.soil),
             # Secondary producers (feed on GENES_CALLED)
+            PhiSpyPlant(self.stream, self.soil),
             PyhmmerPlant(self.stream, self.soil),
             MiniGeneHunter(self.stream, self.soil),
             SignalScanner(self.stream, self.soil),
