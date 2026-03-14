@@ -39,6 +39,9 @@ class NutrientType(str, Enum):
     TAXONOMY_INFERRED = "taxonomy.inferred"
     PLASMIDS_CLASSIFIED = "plasmids.classified"
     MOBILE_ELEMENTS_FOUND = "mobile_elements.found"
+    RESISTANCE_GENES_FOUND = "resistance_genes.found"
+    PROPHAGES_DETECTED = "prophages.detected"
+    BGC_DETECTED = "bgc.detected"
 
     # Microbiome produces these
     QC_COMPLETED = "qc.completed"

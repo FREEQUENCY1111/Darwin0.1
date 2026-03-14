@@ -27,6 +27,9 @@ class FeatureType(str, Enum):
     CRISPR = "CRISPR"
     SIGNAL_PEPTIDE = "signal_peptide"
     MOBILE_ELEMENT = "mobile_element"
+    AMR_GENE = "amr_gene"
+    PROPHAGE = "prophage"
+    BGC = "bgc"
     MISC = "misc_feature"
 
 
@@ -134,6 +137,9 @@ class Genome:
             by_type[f.type.value] = by_type.get(f.type.value, 0) + 1
         plasmid_count = sum(1 for c in self.contigs if c.replicon_type == "plasmid")
         is_count = by_type.get(FeatureType.MOBILE_ELEMENT.value, 0)
+        amr_count = by_type.get(FeatureType.AMR_GENE.value, 0)
+        prophage_count = by_type.get(FeatureType.PROPHAGE.value, 0)
+        bgc_count = by_type.get(FeatureType.BGC.value, 0)
         return {
             "name": self.name,
             "organism": self.organism,
@@ -144,6 +150,9 @@ class Genome:
             "features_by_type": by_type,
             "plasmid_count": plasmid_count,
             "is_element_count": is_count,
+            "amr_gene_count": amr_count,
+            "prophage_count": prophage_count,
+            "bgc_count": bgc_count,
         }
 
 

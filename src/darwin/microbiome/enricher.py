@@ -189,6 +189,45 @@ class Enricher(Organism):
                 + (f" ({', '.join(sorted(families)[:5])})" if families else "")
             )
 
+        # AMR insights
+        amr_genes = genome.features_of_type(FeatureType.AMR_GENE)
+        if amr_genes:
+            resistance_classes: set[str] = set()
+            for f in amr_genes:
+                if "resistance class:" in f.note:
+                    cls_str = f.note.split("resistance class:")[1].split(";")[0].strip()
+                    for cls in cls_str.split(";"):
+                        resistance_classes.add(cls.strip())
+            insights.append(
+                f"Antimicrobial resistance: {len(amr_genes)} resistance gene(s)"
+                + (f"; drug classes: {', '.join(sorted(resistance_classes)[:6])}"
+                   if resistance_classes else "")
+            )
+
+        # Prophage insights
+        prophages = genome.features_of_type(FeatureType.PROPHAGE)
+        if prophages:
+            intact = sum(1 for f in prophages if "intact" in f.note.lower())
+            insights.append(
+                f"Viral integration: {len(prophages)} prophage region(s)"
+                + (f"; {intact} intact, {len(prophages) - intact} incomplete/predicted"
+                   if intact else "")
+            )
+
+        # BGC insights
+        bgcs = genome.features_of_type(FeatureType.BGC)
+        if bgcs:
+            bgc_types: dict[str, int] = {}
+            for f in bgcs:
+                if "type:" in f.note:
+                    btype = f.note.split("type:")[1].split(";")[0].strip()
+                    bgc_types[btype] = bgc_types.get(btype, 0) + 1
+            type_str = ", ".join(f"{k}({v})" for k, v in sorted(bgc_types.items()))
+            insights.append(
+                f"Biosynthetic potential: {len(bgcs)} gene cluster(s)"
+                + (f"; types: {type_str}" if type_str else "")
+            )
+
         # Taxonomy insight
         if genome.taxonomy:
             insights.append(f"Taxonomic classification: {genome.taxonomy}")

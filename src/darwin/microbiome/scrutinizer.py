@@ -54,6 +54,9 @@ class Scrutinizer(Organism):
         NutrientType.RRNA_DETECTED,
         NutrientType.PLASMIDS_CLASSIFIED,
         NutrientType.MOBILE_ELEMENTS_FOUND,
+        NutrientType.RESISTANCE_GENES_FOUND,
+        NutrientType.PROPHAGES_DETECTED,
+        NutrientType.BGC_DETECTED,
     ]
     produces_nutrients = [NutrientType.QC_COMPLETED]
 
@@ -65,11 +68,17 @@ class Scrutinizer(Organism):
             NutrientType.TRNA_DETECTED,
             NutrientType.RRNA_DETECTED,
         }
-        # Optionally wait for plasmid/IS signals if tools are available
+        # Optionally wait for tool-dependent signals
         if self.soil.has_mob_suite:
             self._expected_signals.add(NutrientType.PLASMIDS_CLASSIFIED)
         if self.soil.has_isescan:
             self._expected_signals.add(NutrientType.MOBILE_ELEMENTS_FOUND)
+        if self.soil.has_abricate:
+            self._expected_signals.add(NutrientType.RESISTANCE_GENES_FOUND)
+        if self.soil.has_phispy:
+            self._expected_signals.add(NutrientType.PROPHAGES_DETECTED)
+        if self.soil.has_gecco:
+            self._expected_signals.add(NutrientType.BGC_DETECTED)
 
     def plant(self) -> None:
         """Custom planting — we need to collect multiple signals."""

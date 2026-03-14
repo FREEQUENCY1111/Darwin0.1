@@ -726,3 +726,261 @@ class TestDataModelExtensions:
         """New NutrientTypes should exist."""
         assert NutrientType.PLASMIDS_CLASSIFIED.value == "plasmids.classified"
         assert NutrientType.MOBILE_ELEMENTS_FOUND.value == "mobile_elements.found"
+        assert NutrientType.RESISTANCE_GENES_FOUND.value == "resistance_genes.found"
+        assert NutrientType.PROPHAGES_DETECTED.value == "prophages.detected"
+        assert NutrientType.BGC_DETECTED.value == "bgc.detected"
+
+    def test_v04_feature_types(self):
+        """v0.4 FeatureTypes should exist."""
+        assert FeatureType.AMR_GENE.value == "amr_gene"
+        assert FeatureType.PROPHAGE.value == "prophage"
+        assert FeatureType.BGC.value == "bgc"
+
+    def test_genome_summary_v04_counts(self):
+        """Genome.summary() should include AMR/prophage/BGC counts."""
+        contigs = [Contig(id="chr", sequence="A" * 1000)]
+        contigs[0].features.append(
+            Feature(type=FeatureType.AMR_GENE, start=100, end=400,
+                    product="blaTEM-1", locus_tag="amr_001")
+        )
+        contigs[0].features.append(
+            Feature(type=FeatureType.PROPHAGE, start=500, end=900,
+                    product="predicted prophage", locus_tag="pp_001")
+        )
+        contigs[0].features.append(
+            Feature(type=FeatureType.BGC, start=1000, end=5000,
+                    product="NRPS biosynthetic gene cluster", locus_tag="bgc_001")
+        )
+        genome = Genome(name="test", contigs=contigs)
+        summary = genome.summary()
+        assert summary["amr_gene_count"] == 1
+        assert summary["prophage_count"] == 1
+        assert summary["bgc_count"] == 1
+
+
+# ── ABRicatePlant Tests ─────────────────────────────────
+
+
+class TestABRicatePlant:
+    def test_parse_abricate_output(self):
+        """Test parsing of ABRicate TSV output."""
+        from darwin.flora.amr_plant import ABRicatePlant
+
+        contigs = [
+            Contig(id="contig_1", sequence="A" * 10000),
+        ]
+        genome = Genome(name="test", contigs=contigs)
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".tsv", delete=False, newline=""
+        ) as fh:
+            tsv_path = Path(fh.name)
+            # Write ABRicate header + 2 hits
+            fh.write(
+                "#FILE\tSEQUENCE\tSTART\tEND\tSTRAND\tGENE\tCOVERAGE\t"
+                "COVERAGE_MAP\tGAPS\t%COVERAGE\t%IDENTITY\tDATABASE\t"
+                "ACCESSION\tPRODUCT\tRESISTANCE\n"
+            )
+            fh.write(
+                "input.fa\tcontig_1\t100\t900\t+\tblaTEM-1\t1-800/800\t"
+                "========\t0/0\t100.00\t99.58\tncbi\tNG_050145.1\t"
+                "class A beta-lactamase TEM-1\tBeta-lactam\n"
+            )
+            fh.write(
+                "input.fa\tcontig_1\t2000\t2600\t-\taph(3'')-Ib\t1-600/600\t"
+                "========\t0/0\t100.00\t98.33\tncbi\tNG_047300.1\t"
+                "aminoglycoside phosphotransferase\tAminoglycoside\n"
+            )
+
+        amr_count, resistance_classes = ABRicatePlant._parse_abricate_output(
+            genome, tsv_path, "TEST"
+        )
+        tsv_path.unlink()
+
+        assert amr_count == 2
+        assert "Beta-lactam" in resistance_classes
+        assert "Aminoglycoside" in resistance_classes
+
+        # Check features were attached
+        amr_features = contigs[0].features_of_type(FeatureType.AMR_GENE)
+        assert len(amr_features) == 2
+        assert amr_features[0].product == "class A beta-lactamase TEM-1"
+        assert amr_features[0].gene == "blaTEM-1"
+        assert amr_features[0].strand == Strand.FORWARD
+        assert "resistance class: Beta-lactam" in amr_features[0].note
+        assert "AMR:NG_050145.1" in amr_features[0].db_xref
+        assert amr_features[1].strand == Strand.REVERSE
+
+    def test_parse_empty_output(self):
+        """Missing output file should return 0 AMR genes."""
+        from darwin.flora.amr_plant import ABRicatePlant
+
+        genome = _make_genome()
+        count, classes = ABRicatePlant._parse_abricate_output(
+            genome, Path("/nonexistent/abricate.tsv"), "TEST"
+        )
+        assert count == 0
+        assert len(classes) == 0
+
+    def test_parse_skips_unknown_contig(self):
+        """Rows with unknown contig IDs should be skipped."""
+        from darwin.flora.amr_plant import ABRicatePlant
+
+        genome = _make_genome()
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".tsv", delete=False, newline=""
+        ) as fh:
+            tsv_path = Path(fh.name)
+            fh.write(
+                "#FILE\tSEQUENCE\tSTART\tEND\tSTRAND\tGENE\tCOVERAGE\t"
+                "COVERAGE_MAP\tGAPS\t%COVERAGE\t%IDENTITY\tDATABASE\t"
+                "ACCESSION\tPRODUCT\tRESISTANCE\n"
+            )
+            fh.write(
+                "input.fa\tunknown_contig\t100\t900\t+\tblaTEM-1\t1-800/800\t"
+                "========\t0/0\t100.00\t99.58\tncbi\tNG_050145.1\t"
+                "TEM-1\tBeta-lactam\n"
+            )
+
+        count, classes = ABRicatePlant._parse_abricate_output(
+            genome, tsv_path, "TEST"
+        )
+        tsv_path.unlink()
+        assert count == 0
+
+
+# ── PhiSpyPlant Tests ───────────────────────────────────
+
+
+class TestPhiSpyPlant:
+    def test_write_minimal_genbank(self):
+        """Test minimal GenBank generation for PhiSpy."""
+        from darwin.flora.phispy_plant import PhiSpyPlant
+
+        features = [
+            _make_cds(100, 500, Strand.FORWARD, product="test protein",
+                      locus_tag="TEST_001", translation="MTEST"),
+        ]
+        genome = _make_genome(seq="A" * 2000, features=features)
+
+        with tempfile.NamedTemporaryFile(
+            suffix=".gbk", delete=False, mode="w"
+        ) as f:
+            gbk_path = Path(f.name)
+
+        PhiSpyPlant._write_minimal_genbank(genome, gbk_path)
+        content = gbk_path.read_text()
+        gbk_path.unlink()
+
+        assert "LOCUS" in content
+        assert "CDS" in content
+        assert "test protein" in content
+        assert "ORIGIN" in content
+        assert "//" in content
+
+    def test_parse_phispy_output(self):
+        """Test parsing of PhiSpy prophage coordinates."""
+        from darwin.flora.phispy_plant import PhiSpyPlant
+
+        contigs = [Contig(id="contig_1", sequence="A" * 50000)]
+        genome = Genome(name="test", contigs=contigs)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            coords_file = Path(tmpdir) / "prophage_coordinates.tsv"
+            with open(coords_file, "w") as fh:
+                # No-header format: pp_num, contig, start, stop
+                fh.write("pp_1\tcontig_1\t5000\t25000\n")
+                fh.write("pp_2\tcontig_1\t35000\t45000\n")
+
+            count, statuses = PhiSpyPlant._parse_phispy_output(
+                genome, Path(tmpdir), "TEST"
+            )
+
+        assert count == 2
+        pp_features = contigs[0].features_of_type(FeatureType.PROPHAGE)
+        assert len(pp_features) == 2
+        assert pp_features[0].inference == "ab initio prediction:PhiSpy"
+        assert "length: 20000bp" in pp_features[0].note
+
+    def test_parse_empty_output(self):
+        """No output files should return 0 prophages."""
+        from darwin.flora.phispy_plant import PhiSpyPlant
+
+        genome = _make_genome()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            count, statuses = PhiSpyPlant._parse_phispy_output(
+                genome, Path(tmpdir), "TEST"
+            )
+        assert count == 0
+
+
+# ── GeccoPlant Tests ────────────────────────────────────
+
+
+class TestGeccoPlant:
+    def test_parse_gecco_output(self):
+        """Test parsing of GECCO clusters TSV output."""
+        from darwin.flora.gecco_plant import GeccoPlant
+
+        contigs = [Contig(id="contig_1", sequence="A" * 100000)]
+        genome = Genome(name="test", contigs=contigs)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            clusters_file = Path(tmpdir) / "input.clusters.tsv"
+            with open(clusters_file, "w", newline="") as fh:
+                fh.write(
+                    "sequence_id\tbgc_id\tstart\tend\taverage_p\t"
+                    "type\tn_genes\n"
+                )
+                fh.write(
+                    "contig_1\tbgc_1\t10000\t35000\t0.952\t"
+                    "NRPS\t12\n"
+                )
+                fh.write(
+                    "contig_1\tbgc_2\t60000\t78000\t0.871\t"
+                    "Polyketide\t8\n"
+                )
+
+            count, bgc_types = GeccoPlant._parse_gecco_output(
+                genome, Path(tmpdir), "TEST"
+            )
+
+        assert count == 2
+        assert bgc_types["NRPS"] == 1
+        assert bgc_types["Polyketide"] == 1
+
+        bgc_features = contigs[0].features_of_type(FeatureType.BGC)
+        assert len(bgc_features) == 2
+        assert bgc_features[0].product == "NRPS biosynthetic gene cluster"
+        assert bgc_features[0].inference == "ab initio prediction:GECCO"
+        assert "type: NRPS" in bgc_features[0].note
+        assert "confidence: 0.952" in bgc_features[0].note
+        assert "genes in cluster: 12" in bgc_features[0].note
+
+    def test_parse_empty_output(self):
+        """No output files should return 0 BGCs."""
+        from darwin.flora.gecco_plant import GeccoPlant
+
+        genome = _make_genome()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            count, bgc_types = GeccoPlant._parse_gecco_output(
+                genome, Path(tmpdir), "TEST"
+            )
+        assert count == 0
+        assert len(bgc_types) == 0
+
+    def test_parse_skips_unknown_contig(self):
+        """Rows with unknown contig IDs should be skipped."""
+        from darwin.flora.gecco_plant import GeccoPlant
+
+        genome = _make_genome()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            clusters_file = Path(tmpdir) / "input.clusters.tsv"
+            with open(clusters_file, "w", newline="") as fh:
+                fh.write("sequence_id\tbgc_id\tstart\tend\taverage_p\ttype\tn_genes\n")
+                fh.write("unknown_contig\tbgc_1\t1000\t5000\t0.9\tNRPS\t5\n")
+
+            count, bgc_types = GeccoPlant._parse_gecco_output(
+                genome, Path(tmpdir), "TEST"
+            )
+        assert count == 0

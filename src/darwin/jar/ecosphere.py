@@ -25,9 +25,12 @@ from darwin.flora.aragorn import AragornPlant
 from darwin.flora.barrnap import BarrnapPlant
 from darwin.flora.base import Organism
 from darwin.flora.crispard import CRISPARd
+from darwin.flora.amr_plant import ABRicatePlant
+from darwin.flora.gecco_plant import GeccoPlant
 from darwin.flora.isescan_plant import ISEScanPlant
 from darwin.flora.minigene import MiniGeneHunter
 from darwin.flora.mob_suite_plant import MobSuitePlant
+from darwin.flora.phispy_plant import PhiSpyPlant
 from darwin.flora.operons import OperonGrouper
 from darwin.flora.phylo_16s import PhyloIdentifier
 from darwin.flora.prodigal import ProdigalPlant
@@ -99,6 +102,9 @@ class Ecosphere:
             CRISPARd(self.stream, self.soil),
             MobSuitePlant(self.stream, self.soil),
             ISEScanPlant(self.stream, self.soil),
+            ABRicatePlant(self.stream, self.soil),
+            PhiSpyPlant(self.stream, self.soil),
+            GeccoPlant(self.stream, self.soil),
             # Secondary producers (feed on GENES_CALLED)
             PyhmmerPlant(self.stream, self.soil),
             MiniGeneHunter(self.stream, self.soil),

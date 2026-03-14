@@ -69,7 +69,8 @@ class NutrientStore:
         self._hmm_dbs: list[HMMDatabase] = []
 
         # Register core tools that flora might need
-        for name in ["prodigal", "aragorn", "barrnap", "hmmsearch", "cmscan", "mob_recon", "isescan.py"]:
+        for name in ["prodigal", "aragorn", "barrnap", "hmmsearch", "cmscan",
+                     "mob_recon", "isescan.py", "abricate", "PhiSpy.py", "gecco"]:
             self._tools[name] = ToolInfo(name=name)
 
         # Register explicitly provided HMM databases
@@ -144,6 +145,21 @@ class NutrientStore:
     @property
     def has_isescan(self) -> bool:
         t = self._tools.get("isescan.py")
+        return bool(t and t.available)
+
+    @property
+    def has_abricate(self) -> bool:
+        t = self._tools.get("abricate")
+        return bool(t and t.available)
+
+    @property
+    def has_phispy(self) -> bool:
+        t = self._tools.get("PhiSpy.py")
+        return bool(t and t.available)
+
+    @property
+    def has_gecco(self) -> bool:
+        t = self._tools.get("gecco")
         return bool(t and t.available)
 
     @property
