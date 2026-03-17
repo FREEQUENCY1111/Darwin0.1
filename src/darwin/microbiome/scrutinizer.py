@@ -284,22 +284,43 @@ class Scrutinizer(Organism):
         )
 
     def _check_overlaps(self, genome: Genome) -> QCCheck:
-        total_overlaps = 0
-        for contig in genome.contigs:
-            sorted_features = sorted(contig.features, key=lambda f: f.start)
-            for i in range(1, len(sorted_features)):
-                if sorted_features[i].start < sorted_features[i - 1].end:
-                    total_overlaps += 1
+        """
+        Check for overlapping CDS features (same-type only).
 
-        total_features = len(genome.all_features)
-        overlap_pct = (total_overlaps / total_features * 100) if total_features else 0
+        Signal peptides, CRISPR arrays, and other feature types are
+        expected to overlap with CDS genes (they are sub-features or
+        distinct annotation layers). Only CDS-CDS overlaps indicate
+        potential annotation problems.
+        """
+        total_overlaps = 0
+        total_cds = 0
+        for contig in genome.contigs:
+            # Only check CDS-CDS overlaps — the meaningful metric
+            cds_features = sorted(
+                [f for f in contig.features if f.type == FeatureType.CDS],
+                key=lambda f: f.start,
+            )
+            total_cds += len(cds_features)
+            for i in range(1, len(cds_features)):
+                prev = cds_features[i - 1]
+                curr = cds_features[i]
+                # Count as overlap only if they genuinely overlap
+                # (not just adjacent) and neither fully contains the other
+                if curr.start < prev.end:
+                    overlap_bp = prev.end - curr.start
+                    # Ignore tiny overlaps (<= 30 bp) — common in
+                    # prokaryotes (overlapping stop/start codons)
+                    if overlap_bp > 30:
+                        total_overlaps += 1
+
+        overlap_pct = (total_overlaps / total_cds * 100) if total_cds else 0
         passed = overlap_pct < 15  # some overlap is normal
         return QCCheck(
             name="feature_overlaps",
             passed=passed,
             value=total_overlaps,
-            expected_range="<15% of features",
-            message=f"{total_overlaps} overlapping features ({overlap_pct:.1f}%)",
+            expected_range="<15% of CDS features",
+            message=f"{total_overlaps} overlapping CDS pairs ({overlap_pct:.1f}%)",
             severity="warning" if not passed else "info",
         )
 

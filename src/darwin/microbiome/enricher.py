@@ -303,11 +303,11 @@ class Enricher(Organism):
             return f"{gc}% — very AT-rich (obligate intracellular/endosymbiont)"
         elif gc < 40:
             return f"{gc}% — AT-rich (Firmicutes-like)"
-        elif gc < 50:
-            return f"{gc}% — moderate"
-        elif gc < 60:
+        elif gc < 55:
+            return f"{gc}% — moderate (typical Proteobacteria/Enterobacteriaceae)"
+        elif gc < 65:
             return f"{gc}% — GC-rich (Actinobacteria-like)"
-        elif gc < 70:
+        elif gc < 72:
             return f"{gc}% — high GC (Streptomyces-like)"
         else:
             return f"{gc}% — extremely GC-rich"

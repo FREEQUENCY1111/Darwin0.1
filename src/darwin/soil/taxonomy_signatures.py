@@ -12,6 +12,10 @@ FISH (fluorescence in situ hybridisation) probes and conserved
 
 Each probe entry stores the TARGET SITE in the 16S gene (sense strand),
 i.e. the reverse complement of the published probe oligonucleotide.
+
+Multiple probes per group improve discrimination — especially for
+Proteobacterial classes, which share very similar V6 regions and
+cannot be reliably separated by a single probe.
 """
 
 from __future__ import annotations
@@ -37,63 +41,83 @@ ARCHAEAL_MARKERS = [
 # ────────────────────────────────────────────────
 # Phylum / Class-level probes (for Bacteria only)
 # ────────────────────────────────────────────────
+#
+# For Proteobacterial classes, 16S probes alone are insufficient
+# because the V6 region (around pos 968) is nearly identical
+# across Alpha/Beta/Gamma. We therefore use probes from multiple
+# variable regions (V1, V3, V6) and require stricter matching
+# (max 1 mismatch) for proteobacterial class-level probes.
+#
 TAXONOMY_PROBES: dict[str, dict] = {
     "Firmicutes": {
         "description": "Firmicutes / Bacillota (Bacillus, Staphylococcus, Clostridium)",
         "domain": "Bacteria",
         "level": "phylum",
         # LGC354 a/b/c target sites (Meier et al. 1999) — specific to Firmicutes
-        # Probe LGC354a: 5'-TGGAAGATTCCCTACTGC-3'  → target:
         "probes": [
             "GCAGTAGGGAATCTTCCA",   # LGC354a target
             "GCAGTAGGGAATCTTCCT",   # LGC354b target
             "GCAGTAGGGAATCTCCCA",   # LGC354c target
         ],
-        "min_hits": 1,
+        "max_mismatches": 2,
     },
     "Actinobacteria": {
         "description": "Actinobacteria (Streptomyces, Mycobacterium, Corynebacterium)",
         "domain": "Bacteria",
         "level": "phylum",
         # HGC236 target site — specific to high-GC Gram-positives
-        # Probe HGC236: 5'-AACAAGCTGATACGGTTA-3'  → target:
         "probes": [
             "TAACCGTATCAGCTTGTT",   # HGC236 target
         ],
-        "min_hits": 1,
+        "max_mismatches": 2,
     },
     "Alphaproteobacteria": {
         "description": "Alpha-Proteobacteria (Rhizobium, Caulobacter, Rickettsia)",
         "domain": "Bacteria",
         "level": "class",
-        # ALF968 target site (Neef et al. 1999)
-        # Probe ALF968: 5'-GGTAAGGTTCTGCGCGTT-3'  → target:
+        # ALF968 target site (Neef et al. 1999) plus Alpha-specific V1 region
         "probes": [
-            "AACGCGCAGAACCTTACC",   # ALF968 target
+            "AACGCGCAGAACCTTACC",   # ALF968 target — note C at pos 7
+            "CGGTAATACGGAGGGTGC",   # Alpha V1 signature
+            "GTAGTCCACGCCGTAAAC",   # Alpha V4 diagnostic
         ],
-        "min_hits": 1,
+        "max_mismatches": 1,  # strict — proteobacterial classes are similar
     },
     "Betaproteobacteria": {
         "description": "Beta-Proteobacteria (Burkholderia, Neisseria, Ralstonia)",
         "domain": "Bacteria",
         "level": "class",
-        # BET42a is a 23S probe, so use V6 diagnostic motifs
+        # Beta-specific V6 and V3 regions
         "probes": [
-            "AACGCGAAGAACCTTACC",   # Beta-specific V6 variant
+            "AACGCGAAGAACCTTACC",   # Beta V6 — note shared with Gamma
+            "CCGCATACGCCCTTTGTAC",  # Beta-specific V3 helix
+            "GGAATCTTGCGCAATGGG",  # Beta V1 diagnostic
         ],
-        "min_hits": 1,
+        "max_mismatches": 1,
     },
     "Gammaproteobacteria": {
-        "description": "Gamma-Proteobacteria (E. coli, Pseudomonas, Vibrio)",
+        "description": "Gamma-Proteobacteria (E. coli, Pseudomonas, Vibrio, Salmonella)",
         "domain": "Bacteria",
         "level": "class",
-        # Gammaproteobacteria have distinctive V3 and V6 regions
-        # GAM42a is 23S, so use 16S diagnostic motifs
+        # Gamma-specific probes from multiple 16S regions
+        # The V6 region is shared with Beta, so discrimination
+        # relies on V3 (Enterobacteriaceae/Pseudomonadales) and V1 signatures
         "probes": [
-            "AACGCGAAAAACCTTACC",   # Gamma V6 variant
-            "AACGCGAAGAACCTTACCT",  # Gamma extended
+            "GTGGGGAGCAAAGAGC",     # ENT183 target — Enterobacteriaceae V3
+            "CCTTTGTTGCCAGCG",      # Gamma V3 helix signature
+            "ATGACGGTACCTGAGAAG",   # Gamma V4 diagnostic
+            "GGGAGTACGGTCGCAAG",    # Gamma V1 signature (broad)
         ],
-        "min_hits": 1,
+        "max_mismatches": 1,
+    },
+    "Deltaproteobacteria": {
+        "description": "Delta-Proteobacteria (Myxococcus, Desulfovibrio, Bdellovibrio)",
+        "domain": "Bacteria",
+        "level": "class",
+        "probes": [
+            "CGGCGTCGCTGCGTCAGG",  # SRB385 target (sulfate reducers)
+        ],
+        "max_mismatches": 1,
     },
     "Bacteroidetes": {
         "description": "Bacteroidetes (Bacteroides, Flavobacterium, Cytophaga)",
@@ -103,7 +127,7 @@ TAXONOMY_PROBES: dict[str, dict] = {
         "probes": [
             "TGGTCCGTGTCTCAGTAC",   # CF319a target
         ],
-        "min_hits": 1,
+        "max_mismatches": 2,
     },
     "Cyanobacteria": {
         "description": "Cyanobacteria (Synechococcus, Nostoc, Anabaena)",
@@ -113,7 +137,7 @@ TAXONOMY_PROBES: dict[str, dict] = {
         "probes": [
             "CCCATTGCGGAAAATTCC",   # CYA361 target
         ],
-        "min_hits": 1,
+        "max_mismatches": 2,
     },
     "Spirochaetes": {
         "description": "Spirochaetes (Borrelia, Treponema, Leptospira)",
@@ -122,7 +146,7 @@ TAXONOMY_PROBES: dict[str, dict] = {
         "probes": [
             "GCTTCGCAGGTGACTTTC",   # Spirochaete-diagnostic V3
         ],
-        "min_hits": 1,
+        "max_mismatches": 2,
     },
 }
 
@@ -137,7 +161,7 @@ ARCHAEAL_PROBES: dict[str, dict] = {
             "CTTGCCCCGCCCTT",       # EURY498 variant A
             "CTTGCCCAGCCCTT",       # EURY498 variant G
         ],
-        "min_hits": 1,
+        "max_mismatches": 2,
     },
     "Crenarchaeota": {
         "description": "Crenarchaeota (Sulfolobus, Thermoproteus)",
@@ -148,6 +172,6 @@ ARCHAEAL_PROBES: dict[str, dict] = {
             "CCAGACTTGCCCCCC",      # variant A
             "CCAGGCTTGCCCCCC",      # variant G
         ],
-        "min_hits": 1,
+        "max_mismatches": 2,
     },
 }

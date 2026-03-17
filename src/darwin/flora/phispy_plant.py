@@ -102,7 +102,7 @@ class PhiSpyPlant(Organism):
             stdout, stderr = await proc.communicate()
 
             if proc.returncode != 0:
-                err_msg = stderr.decode()[:500]
+                err_msg = stderr.decode()[:500] or stdout.decode()[:500]
                 self.logger.warning(
                     f"⚠️ PhiSpy failed (exit {proc.returncode}): {err_msg}"
                 )

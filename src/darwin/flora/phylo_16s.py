@@ -122,12 +122,18 @@ def _classify_bacterial_group(seq: str) -> list:
     results = []
     for group_name, info in TAXONOMY_PROBES.items():
         probes = info["probes"]
-        hits = sum(1 for p in probes if _fuzzy_contains(seq, p, 2))
+        max_mm = info.get("max_mismatches", 2)
+        hits = sum(1 for p in probes if _fuzzy_contains(seq, p, max_mm))
         score = hits / len(probes) if probes else 0.0
-        results.append((group_name, score, info["description"]))
+        # Weight by number of probes that hit — more probes hitting
+        # gives higher confidence than a single probe
+        raw_hits = hits
+        results.append((group_name, score, info["description"], raw_hits))
 
-    results.sort(key=lambda x: x[1], reverse=True)
-    return results
+    # Sort by score first, then by raw hit count to break ties
+    results.sort(key=lambda x: (x[1], x[3]), reverse=True)
+    # Return in original (name, score, desc) format
+    return [(name, score, desc) for name, score, desc, _ in results]
 
 
 def _classify_archaeal_group(seq: str) -> list:
@@ -135,7 +141,8 @@ def _classify_archaeal_group(seq: str) -> list:
     results = []
     for group_name, info in ARCHAEAL_PROBES.items():
         probes = info["probes"]
-        hits = sum(1 for p in probes if _fuzzy_contains(seq, p, 2))
+        max_mm = info.get("max_mismatches", 2)
+        hits = sum(1 for p in probes if _fuzzy_contains(seq, p, max_mm))
         score = hits / len(probes) if probes else 0.0
         results.append((group_name, score, info["description"]))
 

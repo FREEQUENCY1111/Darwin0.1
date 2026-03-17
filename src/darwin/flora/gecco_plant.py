@@ -104,7 +104,7 @@ class GeccoPlant(Organism):
             stdout, stderr = await proc.communicate()
 
             if proc.returncode != 0:
-                err_msg = stderr.decode()[:500]
+                err_msg = stderr.decode()[:500] or stdout.decode()[:500]
                 # Negative exit codes mean killed by signal (e.g. -4 = SIGILL)
                 if proc.returncode < 0:
                     import signal as _sig
