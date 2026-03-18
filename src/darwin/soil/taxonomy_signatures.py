@@ -13,9 +13,13 @@ FISH (fluorescence in situ hybridisation) probes and conserved
 Each probe entry stores the TARGET SITE in the 16S gene (sense strand),
 i.e. the reverse complement of the published probe oligonucleotide.
 
-Multiple probes per group improve discrimination — especially for
-Proteobacterial classes, which share very similar V6 regions and
-cannot be reliably separated by a single probe.
+IMPORTANT: Proteobacterial classes share nearly identical 16S V6 regions.
+The key diagnostic nucleotide at position ~971 (ALF968 binding site) is:
+  - Alpha: C  (AACGCG-C-AGAACCTTACC)
+  - Beta/Gamma: G  (AACGCG-A/G-AGAACCTTACC)
+
+Discrimination therefore requires EXACT matching (0 mismatches) for
+class-specific probes, plus additional variable-region diagnostics.
 """
 
 from __future__ import annotations
@@ -42,11 +46,9 @@ ARCHAEAL_MARKERS = [
 # Phylum / Class-level probes (for Bacteria only)
 # ────────────────────────────────────────────────
 #
-# For Proteobacterial classes, 16S probes alone are insufficient
-# because the V6 region (around pos 968) is nearly identical
-# across Alpha/Beta/Gamma. We therefore use probes from multiple
-# variable regions (V1, V3, V6) and require stricter matching
-# (max 1 mismatch) for proteobacterial class-level probes.
+# Proteobacterial class probes use max_mismatches=0 because
+# the diagnostic nucleotides differ by only 1-2 bases between
+# Alpha/Beta/Gamma. Even 1 mismatch causes cross-matching.
 #
 TAXONOMY_PROBES: dict[str, dict] = {
     "Firmicutes": {
@@ -75,23 +77,21 @@ TAXONOMY_PROBES: dict[str, dict] = {
         "description": "Alpha-Proteobacteria (Rhizobium, Caulobacter, Rickettsia)",
         "domain": "Bacteria",
         "level": "class",
-        # ALF968 target site (Neef et al. 1999) plus Alpha-specific V1 region
+        # ALF968 target site — the C at position 7 is Alpha-diagnostic
+        # (Beta/Gamma have G at this position)
+        # Must be EXACT match — even 1 mismatch causes cross-matching with Gamma
         "probes": [
-            "AACGCGCAGAACCTTACC",   # ALF968 target — note C at pos 7
-            "CGGTAATACGGAGGGTGC",   # Alpha V1 signature
-            "GTAGTCCACGCCGTAAAC",   # Alpha V4 diagnostic
+            "AACGCGCAGAACCTTACC",   # ALF968 target — C at pos 7 is key
         ],
-        "max_mismatches": 1,  # strict — proteobacterial classes are similar
+        "max_mismatches": 0,  # MUST be exact — 1mm matches E. coli!
     },
     "Betaproteobacteria": {
         "description": "Beta-Proteobacteria (Burkholderia, Neisseria, Ralstonia)",
         "domain": "Bacteria",
         "level": "class",
-        # Beta-specific V6 and V3 regions
+        # Beta-specific V3 region — distinct from Gamma
         "probes": [
-            "AACGCGAAGAACCTTACC",   # Beta V6 — note shared with Gamma
             "CCGCATACGCCCTTTGTAC",  # Beta-specific V3 helix
-            "GGAATCTTGCGCAATGGG",  # Beta V1 diagnostic
         ],
         "max_mismatches": 1,
     },
@@ -99,16 +99,16 @@ TAXONOMY_PROBES: dict[str, dict] = {
         "description": "Gamma-Proteobacteria (E. coli, Pseudomonas, Vibrio, Salmonella)",
         "domain": "Bacteria",
         "level": "class",
-        # Gamma-specific probes from multiple 16S regions
-        # The V6 region is shared with Beta, so discrimination
-        # relies on V3 (Enterobacteriaceae/Pseudomonadales) and V1 signatures
+        # Gamma-specific probes validated against E. coli K-12 MG1655 16S:
+        #   pos 964: AACGCGAAGAACCTTACC (V6, shared with Beta — use exact)
+        #   pos 767: GTGGGGAGCAAACAGG (ENT183 region, verified E. coli)
+        # The V6 probe at pos 964 has G where Alpha has C — diagnostic
         "probes": [
-            "GTGGGGAGCAAAGAGC",     # ENT183 target — Enterobacteriaceae V3
-            "CCTTTGTTGCCAGCG",      # Gamma V3 helix signature
-            "ATGACGGTACCTGAGAAG",   # Gamma V4 diagnostic
-            "GGGAGTACGGTCGCAAG",    # Gamma V1 signature (broad)
+            "AACGCGAAGAACCTTACC",   # V6 pos 964 — G at pos 7 (Alpha has C)
+            "GTGGGGAGCAAACAGG",     # ENT183 region (corrected to actual E. coli)
+            "CCTTTGTTGCCAGCG",      # Gamma V3 helix (validated match)
         ],
-        "max_mismatches": 1,
+        "max_mismatches": 0,  # exact — V6 differs from Alpha by 1 base
     },
     "Deltaproteobacteria": {
         "description": "Delta-Proteobacteria (Myxococcus, Desulfovibrio, Bdellovibrio)",
@@ -117,7 +117,7 @@ TAXONOMY_PROBES: dict[str, dict] = {
         "probes": [
             "CGGCGTCGCTGCGTCAGG",  # SRB385 target (sulfate reducers)
         ],
-        "max_mismatches": 1,
+        "max_mismatches": 0,
     },
     "Bacteroidetes": {
         "description": "Bacteroidetes (Bacteroides, Flavobacterium, Cytophaga)",
