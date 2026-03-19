@@ -1157,3 +1157,309 @@ class TestFoldseekPlant:
 
         gene1 = proteins["GENE_001"]
         assert "AlphaFoldDB:AF-P12345-F1" in gene1.db_xref
+
+
+# ── Edge Case Tests ─────────────────────────────────────
+
+
+class TestInterProEdgeCases:
+    def test_parse_malformed_rows(self):
+        """Short or malformed rows should be skipped gracefully."""
+        from darwin.flora.interpro_plant import InterProPlant
+
+        features = [
+            _make_cds(100, 500, Strand.FORWARD, locus_tag="G1", translation="M"),
+        ]
+        genome = _make_genome(seq="A" * 1000, features=features)
+        proteins = {f.locus_tag: f for f in genome.contigs[0].features
+                    if f.type == FeatureType.CDS}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tsv_file = Path(tmpdir) / "results.tsv"
+            with open(tsv_file, "w") as fh:
+                fh.write("too\tfew\tcolumns\n")
+                fh.write("\n")
+                fh.write("G1\tmd5\t100\tPfam\tPF999\tdesc\t1\t99\t1e-5\tT\t2024\tIPR001\tReal hit\tGO:0001234\t-\n")
+
+            go, ipr, ann = InterProPlant._parse_iprscan_output(proteins, tsv_file)
+
+        assert ann == 1
+        assert go == 1
+        assert ipr == 1
+
+    def test_duplicate_go_terms_not_added_twice(self):
+        """Same GO term from multiple hits should only appear once."""
+        from darwin.flora.interpro_plant import InterProPlant
+
+        features = [
+            _make_cds(100, 500, Strand.FORWARD, locus_tag="G1", translation="M"),
+        ]
+        genome = _make_genome(seq="A" * 1000, features=features)
+        proteins = {f.locus_tag: f for f in genome.contigs[0].features
+                    if f.type == FeatureType.CDS}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tsv_file = Path(tmpdir) / "results.tsv"
+            with open(tsv_file, "w") as fh:
+                fh.write("G1\tmd5\t100\tPfam\tPF001\tdesc\t1\t99\t1e-5\tT\t2024\tIPR001\tHit\tGO:0001234\t-\n")
+                fh.write("G1\tmd5\t100\tGene3D\tG3D001\tdesc\t1\t99\t1e-5\tT\t2024\tIPR001\tHit\tGO:0001234\t-\n")
+
+            go, ipr, ann = InterProPlant._parse_iprscan_output(proteins, tsv_file)
+
+        gene = proteins["G1"]
+        assert gene.go_terms.count("GO:0001234") == 1  # no duplicates
+        assert gene.ipr_ids.count("IPR001") == 1
+
+    def test_unknown_locus_tag_skipped(self):
+        """Rows with unrecognized locus tags should be skipped."""
+        from darwin.flora.interpro_plant import InterProPlant
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tsv_file = Path(tmpdir) / "results.tsv"
+            with open(tsv_file, "w") as fh:
+                fh.write("UNKNOWN\tmd5\t100\tPfam\tPF001\tdesc\t1\t99\t1e-5\tT\t2024\tIPR001\tHit\tGO:0001\t-\n")
+
+            go, ipr, ann = InterProPlant._parse_iprscan_output({}, tsv_file)
+
+        assert ann == 0
+        assert go == 0
+
+    def test_nonexistent_file_returns_zero(self):
+        """Missing file should return 0 counts, not crash."""
+        from darwin.flora.interpro_plant import InterProPlant
+
+        go, ipr, ann = InterProPlant._parse_iprscan_output({}, Path("/nonexistent"))
+        assert go == 0
+        assert ipr == 0
+        assert ann == 0
+
+
+class TestFoldseekEdgeCases:
+    def test_best_hit_by_bitscore(self):
+        """When multiple hits exist for one protein, keep highest bitscore."""
+        from darwin.flora.foldseek_plant import FoldseekPlant
+
+        features = [
+            _make_cds(100, 500, Strand.FORWARD, locus_tag="G1", translation="M"),
+        ]
+        genome = _make_genome(seq="A" * 1000, features=features)
+        proteins = {f.locus_tag: f for f in genome.contigs[0].features
+                    if f.type == FeatureType.CDS}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result_file = Path(tmpdir) / "results.m8"
+            with open(result_file, "w") as fh:
+                fh.write("G1\t1abc_A\t30.0\t1e-5\t50.0\t0.5\t0.4\t0.6\n")
+                fh.write("G1\t2xyz_B\t45.0\t1e-20\t120.0\t0.8\t0.75\t0.85\n")
+                fh.write("G1\t3low_C\t20.0\t1e-2\t30.0\t0.3\t0.2\t0.4\n")
+
+            hits, remote = FoldseekPlant._parse_foldseek_output(result_file, proteins)
+
+        assert hits == 1
+        gene = proteins["G1"]
+        assert gene.structure_hit == "2xyz_B"  # highest bitscore
+
+    def test_remote_homolog_threshold(self):
+        """Proteins with <30% identity AND TM>0.5 count as remote homologs."""
+        from darwin.flora.foldseek_plant import FoldseekPlant
+
+        features = [
+            _make_cds(100, 300, Strand.FORWARD, locus_tag="G1", translation="M"),
+            _make_cds(400, 700, Strand.FORWARD, locus_tag="G2", translation="M"),
+            _make_cds(800, 1000, Strand.FORWARD, locus_tag="G3", translation="M"),
+        ]
+        genome = _make_genome(seq="A" * 1100, features=features)
+        proteins = {f.locus_tag: f for f in genome.contigs[0].features
+                    if f.type == FeatureType.CDS}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result_file = Path(tmpdir) / "results.m8"
+            with open(result_file, "w") as fh:
+                # Remote homolog: low identity, high TM
+                fh.write("G1\t1a_A\t15.0\t1e-8\t60.0\t0.65\t0.6\t0.7\n")
+                # Not remote: high identity
+                fh.write("G2\t2b_B\t85.0\t1e-50\t200.0\t0.95\t0.9\t0.95\n")
+                # Not remote: low identity but low TM too
+                fh.write("G3\t3c_C\t10.0\t0.1\t20.0\t0.3\t0.2\t0.35\n")
+
+            hits, remote = FoldseekPlant._parse_foldseek_output(result_file, proteins)
+
+        assert hits == 3
+        assert remote == 1  # only G1
+
+    def test_similar_fold_annotation(self):
+        """TM-score between 0.5-0.7 should say 'similar fold', not 'same fold'."""
+        from darwin.flora.foldseek_plant import FoldseekPlant
+
+        features = [
+            _make_cds(100, 500, Strand.FORWARD, locus_tag="G1", translation="M"),
+        ]
+        genome = _make_genome(seq="A" * 1000, features=features)
+        proteins = {f.locus_tag: f for f in genome.contigs[0].features
+                    if f.type == FeatureType.CDS}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result_file = Path(tmpdir) / "results.m8"
+            with open(result_file, "w") as fh:
+                fh.write("G1\t1a_A\t25.0\t1e-5\t50.0\t0.55\t0.5\t0.6\n")
+
+            FoldseekPlant._parse_foldseek_output(result_file, proteins)
+
+        gene = proteins["G1"]
+        assert "similar fold" in gene.note
+        assert "same fold" not in gene.note
+
+    def test_malformed_numeric_fields_skipped(self):
+        """Rows with non-numeric evalue/bitscore should be skipped."""
+        from darwin.flora.foldseek_plant import FoldseekPlant
+
+        features = [
+            _make_cds(100, 500, Strand.FORWARD, locus_tag="G1", translation="M"),
+        ]
+        genome = _make_genome(seq="A" * 1000, features=features)
+        proteins = {f.locus_tag: f for f in genome.contigs[0].features
+                    if f.type == FeatureType.CDS}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result_file = Path(tmpdir) / "results.m8"
+            with open(result_file, "w") as fh:
+                fh.write("G1\t1a_A\tNaN\tbad\tnope\t0.5\t0.4\t0.6\n")
+
+            hits, remote = FoldseekPlant._parse_foldseek_output(result_file, proteins)
+
+        assert hits == 0
+
+
+# ── Output Pipeline Integration Tests ───────────────────
+
+
+class TestOutputPipelineV05:
+    def test_tsv_includes_v05_columns(self):
+        """TSV output should include go_terms, ipr_ids, structure_hit columns."""
+        from darwin.output.tsv import write_tsv
+
+        features = [
+            _make_cds(100, 500, Strand.FORWARD, locus_tag="G1", translation="M"),
+        ]
+        genome = _make_genome(seq="A" * 1000, features=features)
+        gene = genome.contigs[0].features[0]
+        gene.go_terms = ["GO:0003674", "GO:0005575"]
+        gene.ipr_ids = ["IPR000001"]
+        gene.structure_hit = "1xyz_A"
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tsv_path = Path(tmpdir) / "test.tsv"
+            write_tsv(genome, tsv_path)
+            content = tsv_path.read_text()
+
+        lines = content.strip().split("\n")
+        header = lines[0].split("\t")
+        assert "go_terms" in header
+        assert "ipr_ids" in header
+        assert "structure_hit" in header
+
+        data = lines[1].split("\t")
+        go_idx = header.index("go_terms")
+        ipr_idx = header.index("ipr_ids")
+        struct_idx = header.index("structure_hit")
+        assert "GO:0003674" in data[go_idx]
+        assert "GO:0005575" in data[go_idx]
+        assert "IPR000001" in data[ipr_idx]
+        assert "1xyz_A" in data[struct_idx]
+
+    def test_gff3_includes_v05_attributes(self):
+        """GFF3 should include Ontology_term, interpro, structure_hit."""
+        from darwin.microbiome.synthesizer import Synthesizer
+        from darwin.soil.nutrients import NutrientStore
+        from darwin.water.stream import Stream
+
+        features = [
+            _make_cds(100, 500, Strand.FORWARD, locus_tag="G1", translation="M"),
+        ]
+        genome = _make_genome(seq="A" * 1000, features=features)
+        gene = genome.contigs[0].features[0]
+        gene.go_terms = ["GO:0003674"]
+        gene.ipr_ids = ["IPR000001"]
+        gene.structure_hit = "2abc_B"
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            gff_path = Path(tmpdir) / "test.gff3"
+            stream = Stream()
+            soil = NutrientStore()
+            synth = Synthesizer(stream, soil, output_dir=Path(tmpdir))
+            synth._write_gff3(genome, gff_path)
+            content = gff_path.read_text()
+
+        assert "Ontology_term=GO:0003674" in content
+        assert "interpro=IPR000001" in content
+        assert "structure_hit=2abc_B" in content
+
+    def test_genbank_includes_v05_qualifiers(self):
+        """GenBank should include GO and InterPro db_xref qualifiers."""
+        from darwin.microbiome.synthesizer import Synthesizer
+        from darwin.soil.nutrients import NutrientStore
+        from darwin.water.stream import Stream
+
+        features = [
+            _make_cds(100, 500, Strand.FORWARD, locus_tag="G1", translation="MTEST"),
+        ]
+        genome = _make_genome(seq="A" * 1000, features=features)
+        gene = genome.contigs[0].features[0]
+        gene.go_terms = ["GO:0003674"]
+        gene.ipr_ids = ["IPR000001"]
+        gene.structure_hit = "1xyz_A"
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            gbk_path = Path(tmpdir) / "test.gbk"
+            stream = Stream()
+            soil = NutrientStore()
+            synth = Synthesizer(stream, soil, output_dir=Path(tmpdir))
+            synth._write_genbank(genome, gbk_path)
+            content = gbk_path.read_text()
+
+        assert '/GO_component="GO:0003674"' in content
+        assert '/db_xref="InterPro:IPR000001"' in content
+        assert '/db_xref="PDB:1xyz_A"' in content
+
+
+class TestBackwardCompatibility:
+    def test_feature_defaults_empty_lists(self):
+        """New fields should default to empty, not break old code."""
+        f = Feature(type=FeatureType.CDS, start=1, end=100)
+        assert f.go_terms == []
+        assert f.ipr_ids == []
+        assert f.structure_hit == ""
+        # Ensure old fields still work
+        assert f.db_xref == []
+        assert f.note == ""
+        assert f.product == "hypothetical protein"
+
+    def test_genome_summary_still_works(self):
+        """Genome.summary() should work with or without v0.5 fields populated."""
+        contigs = [Contig(id="c1", sequence="A" * 1000)]
+        contigs[0].features.append(
+            Feature(type=FeatureType.CDS, start=100, end=400, locus_tag="g1")
+        )
+        genome = Genome(name="test", contigs=contigs)
+        summary = genome.summary()
+        assert "total_features" in summary
+        assert summary["total_features"] == 1
+
+    def test_tsv_empty_v05_fields(self):
+        """TSV should handle features with no GO/IPR/structure gracefully."""
+        from darwin.output.tsv import write_tsv
+
+        features = [
+            _make_cds(100, 500, Strand.FORWARD, locus_tag="G1", translation="M"),
+        ]
+        genome = _make_genome(seq="A" * 1000, features=features)
+        # Don't set any v0.5 fields
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tsv_path = Path(tmpdir) / "test.tsv"
+            write_tsv(genome, tsv_path)
+            content = tsv_path.read_text()
+
+        lines = content.strip().split("\n")
+        assert len(lines) == 2  # header + 1 data row
+        # Should not crash with empty fields

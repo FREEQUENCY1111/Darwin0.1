@@ -134,6 +134,12 @@ class Synthesizer(Organism):
                         attrs += f";gene={f.gene}"
                     if f.db_xref:
                         attrs += f";Dbxref={','.join(f.db_xref)}"
+                    if f.go_terms:
+                        attrs += f";Ontology_term={','.join(f.go_terms)}"
+                    if f.ipr_ids:
+                        attrs += f";interpro={','.join(f.ipr_ids)}"
+                    if f.structure_hit:
+                        attrs += f";structure_hit={f.structure_hit}"
                     if f.note:
                         attrs += f";note={f.note}"
                     fh.write(
@@ -185,6 +191,15 @@ class Synthesizer(Organism):
                     # db_xref qualifiers
                     for xref in f.db_xref:
                         fh.write(f'                     /db_xref="{xref}"\n')
+                    # GO terms
+                    for go in f.go_terms:
+                        fh.write(f'                     /GO_component="{go}"\n')
+                    # InterPro IDs
+                    for ipr in f.ipr_ids:
+                        fh.write(f'                     /db_xref="InterPro:{ipr}"\n')
+                    # Foldseek structural hit
+                    if f.structure_hit:
+                        fh.write(f'                     /db_xref="PDB:{f.structure_hit}"\n')
                     if f.note:
                         fh.write(f'                     /note="{f.note}"\n')
                     if f.translation and f.type == FeatureType.CDS:

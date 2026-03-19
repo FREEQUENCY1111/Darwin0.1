@@ -13,7 +13,7 @@ def write_tsv(genome: Genome, output: Path) -> Path:
     headers = [
         "locus_tag", "type", "contig", "start", "end", "strand",
         "length", "product", "score", "inference", "db_xref",
-        "gene", "operon", "note",
+        "gene", "operon", "go_terms", "ipr_ids", "structure_hit", "note",
     ]
 
     with open(output, "w", newline="") as fh:
@@ -49,6 +49,9 @@ def write_tsv(genome: Genome, output: Path) -> Path:
                     ";".join(f.db_xref) if f.db_xref else "",
                     f.gene,
                     operon,
+                    ";".join(f.go_terms) if f.go_terms else "",
+                    ";".join(f.ipr_ids) if f.ipr_ids else "",
+                    f.structure_hit,
                     ";".join(note_parts),
                 ])
 
