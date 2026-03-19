@@ -991,3 +991,169 @@ class TestGeccoPlant:
                 genome, Path(tmpdir), "TEST"
             )
         assert count == 0
+
+
+# ── v0.5 NutrientType and Feature Model Tests ────────────
+
+
+class TestV05Types:
+    def test_nutrient_types_v05(self):
+        """v0.5 NutrientTypes should exist."""
+        assert NutrientType.FUNCTIONS_ANNOTATED.value == "functions.annotated"
+        assert NutrientType.STRUCTURES_MATCHED.value == "structures.matched"
+
+    def test_feature_go_terms_field(self):
+        """Feature should have go_terms list."""
+        f = Feature(type=FeatureType.CDS, start=1, end=100)
+        assert f.go_terms == []
+        f.go_terms.append("GO:0003674")
+        assert "GO:0003674" in f.go_terms
+
+    def test_feature_ipr_ids_field(self):
+        """Feature should have ipr_ids list."""
+        f = Feature(type=FeatureType.CDS, start=1, end=100)
+        assert f.ipr_ids == []
+        f.ipr_ids.append("IPR000001")
+        assert "IPR000001" in f.ipr_ids
+
+    def test_feature_structure_hit_field(self):
+        """Feature should have structure_hit string."""
+        f = Feature(type=FeatureType.CDS, start=1, end=100)
+        assert f.structure_hit == ""
+        f.structure_hit = "1xyz_A"
+        assert f.structure_hit == "1xyz_A"
+
+
+# ── InterProPlant Tests ─────────────────────────────────
+
+
+class TestInterProPlant:
+    def test_parse_iprscan_output(self):
+        """Parse standard InterProScan TSV output."""
+        from darwin.flora.interpro_plant import InterProPlant
+
+        features = [
+            _make_cds(100, 500, Strand.FORWARD, product="hypothetical protein",
+                      locus_tag="GENE_001", translation="MTEST"),
+            _make_cds(600, 900, Strand.FORWARD, product="known protein",
+                      locus_tag="GENE_002", translation="MKNOWN"),
+        ]
+        genome = _make_genome(seq="A" * 1000, features=features)
+        proteins = {f.locus_tag: f for f in genome.contigs[0].features
+                    if f.type == FeatureType.CDS}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tsv_file = Path(tmpdir) / "results.tsv"
+            with open(tsv_file, "w") as fh:
+                fh.write(
+                    "GENE_001\tmd5\t133\tPfam\tPF00001\t7tm_1\t10\t130\t1e-20\tT\t"
+                    "2024-01-01\tIPR000276\tG protein-coupled receptor\t"
+                    "GO:0004930|GO:0007186\tREACTOME:R-HSA-390666\n"
+                )
+                fh.write(
+                    "GENE_002\tmd5\t100\tTIGRFAM\tTIGR00001\tsome_fam\t5\t95\t1e-15\tT\t"
+                    "2024-01-01\t-\t-\tGO:0003674\t-\n"
+                )
+
+            go_count, ipr_count, annotated = InterProPlant._parse_iprscan_output(
+                proteins, tsv_file
+            )
+
+        assert annotated == 2
+        assert go_count == 3
+        assert ipr_count == 1
+
+        gene1 = proteins["GENE_001"]
+        assert gene1.product == "G protein-coupled receptor"
+        assert "IPR000276" in gene1.ipr_ids
+        assert "GO:0004930" in gene1.go_terms
+        assert "GO:0007186" in gene1.go_terms
+        assert "Pfam:PF00001" in gene1.db_xref
+        assert "pathway: REACTOME:R-HSA-390666" in gene1.note
+
+    def test_parse_empty_output(self):
+        """Empty file should return 0 annotations."""
+        from darwin.flora.interpro_plant import InterProPlant
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tsv_file = Path(tmpdir) / "results.tsv"
+            tsv_file.touch()
+            go, ipr, ann = InterProPlant._parse_iprscan_output({}, tsv_file)
+        assert go == 0
+        assert ipr == 0
+        assert ann == 0
+
+
+# ── FoldseekPlant Tests ─────────────────────────────────
+
+
+class TestFoldseekPlant:
+    def test_parse_foldseek_output(self):
+        """Parse Foldseek m8 tabular output."""
+        from darwin.flora.foldseek_plant import FoldseekPlant
+
+        features = [
+            _make_cds(100, 500, Strand.FORWARD, product="hypothetical protein",
+                      locus_tag="GENE_001", translation="MTEST"),
+            _make_cds(600, 900, Strand.FORWARD, product="known protein",
+                      locus_tag="GENE_002", translation="MKNOWN"),
+        ]
+        genome = _make_genome(seq="A" * 1000, features=features)
+        proteins = {f.locus_tag: f for f in genome.contigs[0].features
+                    if f.type == FeatureType.CDS}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result_file = Path(tmpdir) / "results.m8"
+            with open(result_file, "w") as fh:
+                fh.write("GENE_001\t1xyz_A\t25.5\t1e-10\t85.0\t0.72\t0.65\t0.80\n")
+                fh.write("GENE_002\t2abc_B\t55.0\t1e-30\t150.0\t0.85\t0.82\t0.90\n")
+
+            total_hits, remote_count = FoldseekPlant._parse_foldseek_output(
+                result_file, proteins
+            )
+
+        assert total_hits == 2
+        assert remote_count == 1
+
+        gene1 = proteins["GENE_001"]
+        assert gene1.structure_hit == "1xyz_A"
+        assert "PDB:1xyz_A" in gene1.db_xref
+        assert "TM-score: 0.720" in gene1.note
+        assert "same fold" in gene1.note
+        assert "seq identity: 25.5%" in gene1.note
+
+        gene2 = proteins["GENE_002"]
+        assert gene2.structure_hit == "2abc_B"
+
+    def test_parse_empty_output(self):
+        """Empty results should return 0 hits."""
+        from darwin.flora.foldseek_plant import FoldseekPlant
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result_file = Path(tmpdir) / "results.m8"
+            result_file.touch()
+            hits, remote = FoldseekPlant._parse_foldseek_output(result_file, {})
+        assert hits == 0
+        assert remote == 0
+
+    def test_parse_alphafold_db_xref(self):
+        """AlphaFold hits should get AlphaFoldDB: prefix."""
+        from darwin.flora.foldseek_plant import FoldseekPlant
+
+        features = [
+            _make_cds(100, 500, Strand.FORWARD, product="hypothetical protein",
+                      locus_tag="GENE_001", translation="MTEST"),
+        ]
+        genome = _make_genome(seq="A" * 1000, features=features)
+        proteins = {f.locus_tag: f for f in genome.contigs[0].features
+                    if f.type == FeatureType.CDS}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result_file = Path(tmpdir) / "results.m8"
+            with open(result_file, "w") as fh:
+                fh.write("GENE_001\tAF-P12345-F1\t40.0\t1e-20\t120.0\t0.80\t0.75\t0.85\n")
+
+            FoldseekPlant._parse_foldseek_output(result_file, proteins)
+
+        gene1 = proteins["GENE_001"]
+        assert "AlphaFoldDB:AF-P12345-F1" in gene1.db_xref

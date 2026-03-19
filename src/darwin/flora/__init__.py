@@ -13,6 +13,8 @@ Flora don't know about each other. They just grow.
 
 from darwin.flora.amr_plant import ABRicatePlant
 from darwin.flora.aragorn import AragornPlant
+from darwin.flora.foldseek_plant import FoldseekPlant
+from darwin.flora.interpro_plant import InterProPlant
 from darwin.flora.barrnap import BarrnapPlant
 from darwin.flora.base import Organism
 from darwin.flora.crispard import CRISPARd
@@ -43,4 +45,6 @@ __all__ = [
     "ABRicatePlant",
     "PhiSpyPlant",
     "GeccoPlant",
+    "InterProPlant",
+    "FoldseekPlant",
 ]

@@ -42,6 +42,8 @@ class NutrientType(str, Enum):
     RESISTANCE_GENES_FOUND = "resistance_genes.found"
     PROPHAGES_DETECTED = "prophages.detected"
     BGC_DETECTED = "bgc.detected"
+    FUNCTIONS_ANNOTATED = "functions.annotated"
+    STRUCTURES_MATCHED = "structures.matched"
 
     # Microbiome produces these
     QC_COMPLETED = "qc.completed"

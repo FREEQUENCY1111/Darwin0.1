@@ -26,7 +26,9 @@ from darwin.flora.barrnap import BarrnapPlant
 from darwin.flora.base import Organism
 from darwin.flora.crispard import CRISPARd
 from darwin.flora.amr_plant import ABRicatePlant
+from darwin.flora.foldseek_plant import FoldseekPlant
 from darwin.flora.gecco_plant import GeccoPlant
+from darwin.flora.interpro_plant import InterProPlant
 from darwin.flora.isescan_plant import ISEScanPlant
 from darwin.flora.minigene import MiniGeneHunter
 from darwin.flora.mob_suite_plant import MobSuitePlant
@@ -110,6 +112,9 @@ class Ecosphere:
             MiniGeneHunter(self.stream, self.soil),
             SignalScanner(self.stream, self.soil),
             OperonGrouper(self.stream, self.soil),
+            # Tertiary producers (feed on PROTEINS_FOUND)
+            InterProPlant(self.stream, self.soil),
+            FoldseekPlant(self.stream, self.soil),
             # Tertiary producers (feed on RRNA_DETECTED)
             PhyloIdentifier(self.stream, self.soil),
         ]

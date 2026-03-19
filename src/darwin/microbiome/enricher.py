@@ -228,6 +228,41 @@ class Enricher(Organism):
                 + (f"; types: {type_str}" if type_str else "")
             )
 
+        # Functional annotation insights (InterProScan)
+        go_proteins = [f for f in cds if f.go_terms]
+        ipr_proteins = [f for f in cds if f.ipr_ids]
+        if go_proteins or ipr_proteins:
+            all_go_terms = set()
+            for f in go_proteins:
+                all_go_terms.update(f.go_terms)
+            all_ipr_ids = set()
+            for f in ipr_proteins:
+                all_ipr_ids.update(f.ipr_ids)
+            insights.append(
+                f"Functional annotation: {len(go_proteins)} proteins with GO terms "
+                f"({len(all_go_terms)} unique), {len(ipr_proteins)} with InterPro "
+                f"domains ({len(all_ipr_ids)} unique)"
+            )
+
+        # Structural homology insights (Foldseek)
+        struct_proteins = [f for f in cds if f.structure_hit]
+        if struct_proteins:
+            remote_homologs = [
+                f for f in struct_proteins
+                if "seq identity" in f.note
+                and any(
+                    float(p.split(":")[1].strip().rstrip("%")) < 30.0
+                    for p in f.note.split(";")
+                    if p.strip().startswith("seq identity")
+                )
+            ]
+            insights.append(
+                f"Structural homology: {len(struct_proteins)} proteins with "
+                f"PDB/AlphaFold hits"
+                + (f", {len(remote_homologs)} remote homologs (<30% identity)"
+                   if remote_homologs else "")
+            )
+
         # Taxonomy insight
         if genome.taxonomy:
             insights.append(f"Taxonomic classification: {genome.taxonomy}")

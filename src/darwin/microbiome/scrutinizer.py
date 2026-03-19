@@ -57,6 +57,8 @@ class Scrutinizer(Organism):
         NutrientType.RESISTANCE_GENES_FOUND,
         NutrientType.PROPHAGES_DETECTED,
         NutrientType.BGC_DETECTED,
+        NutrientType.FUNCTIONS_ANNOTATED,
+        NutrientType.STRUCTURES_MATCHED,
     ]
     produces_nutrients = [NutrientType.QC_COMPLETED]
 
@@ -79,6 +81,10 @@ class Scrutinizer(Organism):
             self._expected_signals.add(NutrientType.PROPHAGES_DETECTED)
         if self.soil.has_gecco:
             self._expected_signals.add(NutrientType.BGC_DETECTED)
+        if self.soil.has_interproscan:
+            self._expected_signals.add(NutrientType.FUNCTIONS_ANNOTATED)
+        if self.soil.has_foldseek:
+            self._expected_signals.add(NutrientType.STRUCTURES_MATCHED)
 
     def plant(self) -> None:
         """Custom planting — we need to collect multiple signals."""

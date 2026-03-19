@@ -50,6 +50,9 @@ class Feature:
     gene: str = ""
     note: str = ""
     db_xref: list[str] = field(default_factory=list)
+    go_terms: list[str] = field(default_factory=list)  # GO:0003674 etc.
+    ipr_ids: list[str] = field(default_factory=list)   # IPR000001 etc.
+    structure_hit: str = ""  # best Foldseek hit (PDB/AF ID)
 
     @property
     def length(self) -> int:
