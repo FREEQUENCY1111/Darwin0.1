@@ -1,0 +1,103 @@
+{
+  "genome": {
+    "name": "GCF_000005845.2_ASM584v2_genomic",
+    "organism": "",
+    "total_length_bp": 4641652,
+    "num_contigs": 1,
+    "gc_content": 50.79,
+    "total_features": 4429,
+    "features_by_type": {
+      "tRNA": 88,
+      "rRNA": 22,
+      "CDS": 4319
+    }
+  },
+  "enrichment": {
+    "size_category": "typical prokaryote (2-5 Mb)",
+    "gc_interpretation": "50.79% \u2014 GC-rich (Actinobacteria-like)",
+    "hypothetical_ratio": 0.0725,
+    "insights": [
+      "Genome classification: typical prokaryote (2-5 Mb)",
+      "GC content analysis: 50.79% \u2014 GC-rich (Actinobacteria-like)",
+      "Hypothetical protein ratio: 7.2% (313/4319)"
+    ],
+    "recommendations": [
+      "Annotation looks good \u2014 no additional analysis recommended"
+    ],
+    "stats": {
+      "total_cds": 4319,
+      "total_trna": 88,
+      "total_rrna": 22,
+      "hypothetical": 313,
+      "annotated": 4006
+    }
+  },
+  "qc_checks": [
+    {
+      "name": "gene_density",
+      "passed": true,
+      "value": 0.93,
+      "expected": "0.5-1.5 genes/kb",
+      "message": "0.930 genes/kb (4319 genes in 4642 kb)",
+      "severity": "info"
+    },
+    {
+      "name": "trna_complement",
+      "passed": true,
+      "value": 21,
+      "expected": ">=18 amino acid types",
+      "message": "21/20 amino acid tRNAs found (88 total tRNAs)",
+      "severity": "info"
+    },
+    {
+      "name": "rrna_operons",
+      "passed": true,
+      "value": 3,
+      "expected": "5S + 16S + 23S",
+      "message": "Found: 5S, 16S, 23S (22 total rRNAs)",
+      "severity": "info"
+    },
+    {
+      "name": "coding_density",
+      "passed": true,
+      "value": 87.6,
+      "expected": "70-95%",
+      "message": "87.6% coding (4,066,852 bp of 4,641,652 bp)",
+      "severity": "info"
+    },
+    {
+      "name": "avg_gene_length",
+      "passed": true,
+      "value": 942.0,
+      "expected": "600-1500 bp",
+      "message": "942 bp average across 4319 genes",
+      "severity": "info"
+    },
+    {
+      "name": "feature_overlaps",
+      "passed": true,
+      "value": 577,
+      "expected": "<15% of features",
+      "message": "577 overlapping features (13.0%)",
+      "severity": "info"
+    }
+  ],
+  "files": [
+    "darwin_vs_ncbi_pfam/GCF_000005845.2_ASM584v2_genomic.gff3",
+    "darwin_vs_ncbi_pfam/GCF_000005845.2_ASM584v2_genomic.gbk",
+    "darwin_vs_ncbi_pfam/GCF_000005845.2_ASM584v2_genomic_proteins.faa",
+    "darwin_vs_ncbi_pfam/GCF_000005845.2_ASM584v2_genomic.fna"
+  ],
+  "generated_at": "2026-03-12T10:21:57Z",
+  "water_cycle": {
+    "genome.loaded": 1,
+    "trna.detected": 1,
+    "rrna.detected": 1,
+    "genes.called": 1,
+    "proteins.found": 1,
+    "qc.completed": 2,
+    "annotation.ready": 2,
+    "output.written": 1,
+    "equilibrium": 1
+  }
+}

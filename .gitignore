@@ -14,3 +14,12 @@ darwin_output/
 *.tar.gz
 .env
 .venv/
+
+# Large databases (re-download with darwin check)
+databases/
+
+# Temporary/cache
+tmp/
+pytest-cache-files-*/
+.DS_Store
+mnt/

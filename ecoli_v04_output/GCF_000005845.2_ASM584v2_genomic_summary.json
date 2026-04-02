@@ -1,0 +1,166 @@
+{
+  "genome": {
+    "name": "GCF_000005845.2_ASM584v2_genomic",
+    "organism": "unclassified Gammaproteobacteria",
+    "total_length_bp": 4641652,
+    "num_contigs": 1,
+    "gc_content": 50.79,
+    "total_features": 5435,
+    "features_by_type": {
+      "CRISPR": 16,
+      "tRNA": 88,
+      "CDS": 4396,
+      "rRNA": 22,
+      "signal_peptide": 911,
+      "bgc": 2
+    },
+    "plasmid_count": 0,
+    "is_element_count": 0,
+    "amr_gene_count": 0,
+    "prophage_count": 0,
+    "bgc_count": 2
+  },
+  "enrichment": {
+    "size_category": "typical prokaryote (2-5 Mb)",
+    "gc_interpretation": "50.79% \u2014 moderate (typical Proteobacteria/Enterobacteriaceae)",
+    "hypothetical_ratio": 0.0887,
+    "insights": [
+      "Genome classification: typical prokaryote (2-5 Mb)",
+      "GC content analysis: 50.79% \u2014 moderate (typical Proteobacteria/Enterobacteriaceae)",
+      "Hypothetical protein ratio: 8.9% (390/4396)",
+      "CRISPR defense: 16 array(s) with ~49 spacers \u2014 active adaptive immunity",
+      "Secretome: 911 signal peptides (20.7% of proteins)",
+      "Gene organization: 1025 predicted operons (3358 genes)",
+      "Biosynthetic potential: 2 gene cluster(s); types: NRP(1), Saccharide(1)",
+      "Taxonomic classification: Gammaproteobacteria",
+      "Metabolic capabilities: pathogenicity, antibiotic_resistance, motile",
+      "Predicted lifestyle: motile, potential pathogen, antibiotic resistance (3 genes)",
+      "Putative genomic islands: 67 regions with aberrant GC content (potential HGT)"
+    ],
+    "recommendations": [
+      "Annotation looks good \u2014 no additional analysis recommended"
+    ],
+    "metabolic_markers": {
+      "pathogenicity": 37,
+      "antibiotic_resistance": 3,
+      "motile": 6
+    },
+    "gc_islands": 67,
+    "stats": {
+      "total_cds": 4396,
+      "total_trna": 88,
+      "total_rrna": 22,
+      "total_crispr": 16,
+      "total_signal_peptides": 911,
+      "hypothetical": 390,
+      "annotated": 4006
+    }
+  },
+  "qc_checks": [
+    {
+      "name": "gene_density",
+      "passed": true,
+      "value": 0.947,
+      "expected": "0.5-1.5 genes/kb",
+      "message": "0.947 genes/kb (4396 genes in 4642 kb)",
+      "severity": "info"
+    },
+    {
+      "name": "trna_complement",
+      "passed": true,
+      "value": 21,
+      "expected": ">=18 amino acid types",
+      "message": "21/20 amino acid tRNAs found (88 total tRNAs)",
+      "severity": "info"
+    },
+    {
+      "name": "rrna_operons",
+      "passed": true,
+      "value": 3,
+      "expected": "5S + 16S + 23S",
+      "message": "Found: 5S, 16S, 23S (22 total rRNAs)",
+      "severity": "info"
+    },
+    {
+      "name": "coding_density",
+      "passed": true,
+      "value": 87.7,
+      "expected": "70-95%",
+      "message": "87.7% coding (4,072,709 bp of 4,641,652 bp)",
+      "severity": "info"
+    },
+    {
+      "name": "avg_gene_length",
+      "passed": true,
+      "value": 926.0,
+      "expected": "600-1500 bp",
+      "message": "926 bp average across 4396 genes",
+      "severity": "info"
+    },
+    {
+      "name": "feature_overlaps",
+      "passed": true,
+      "value": 57,
+      "expected": "<15% of CDS features",
+      "message": "57 overlapping CDS pairs (1.3%)",
+      "severity": "info"
+    },
+    {
+      "name": "rrna_lengths",
+      "passed": true,
+      "value": 22,
+      "expected": "16S:1400-1600, 23S:2800-3000, 5S:100-150",
+      "message": "22 rRNAs checked, 0 out of range",
+      "severity": "info"
+    },
+    {
+      "name": "start_codon_dist",
+      "passed": true,
+      "value": 90.5,
+      "expected": "ATG 50-95%",
+      "message": "ATG=90.5% (ATG:3978, GTG:334, TTG:83, other:1)",
+      "severity": "info"
+    },
+    {
+      "name": "strand_bias",
+      "passed": true,
+      "value": 48.8,
+      "expected": "30-70% forward strand",
+      "message": "48.8% forward (2146/4396)",
+      "severity": "info"
+    },
+    {
+      "name": "rrna_copy_number",
+      "passed": true,
+      "value": 7,
+      "expected": "3-10 copies for 4.6 Mb genome",
+      "message": "7 copies of 16S rRNA for 4.6 Mb genome",
+      "severity": "info"
+    }
+  ],
+  "files": [
+    "ecoli_v04_output/GCF_000005845.2_ASM584v2_genomic.gff3",
+    "ecoli_v04_output/GCF_000005845.2_ASM584v2_genomic.gbk",
+    "ecoli_v04_output/GCF_000005845.2_ASM584v2_genomic_features.tsv",
+    "ecoli_v04_output/GCF_000005845.2_ASM584v2_genomic_proteins.faa",
+    "ecoli_v04_output/GCF_000005845.2_ASM584v2_genomic.fna"
+  ],
+  "generated_at": "2026-03-19T12:22:51Z",
+  "water_cycle": {
+    "genome.loaded": 1,
+    "crispr.detected": 1,
+    "resistance_genes.found": 1,
+    "trna.detected": 1,
+    "genes.called": 1,
+    "rrna.detected": 1,
+    "proteins.found": 1,
+    "minigenes.found": 1,
+    "signal_peptides.found": 1,
+    "operons.grouped": 1,
+    "taxonomy.inferred": 1,
+    "bgc.detected": 1,
+    "prophages.detected": 1,
+    "qc.completed": 1,
+    "annotation.ready": 1
+  }
+}
