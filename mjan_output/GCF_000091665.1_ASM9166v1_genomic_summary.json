@@ -1,0 +1,159 @@
+{
+  "genome": {
+    "name": "GCF_000091665.1_ASM9166v1_genomic",
+    "organism": "unclassified Archaea",
+    "total_length_bp": 1739927,
+    "num_contigs": 3,
+    "gc_content": 31.29,
+    "total_features": 2273,
+    "features_by_type": {
+      "CRISPR": 15,
+      "tRNA": 36,
+      "CDS": 1922,
+      "rRNA": 6,
+      "signal_peptide": 294
+    }
+  },
+  "enrichment": {
+    "size_category": "small prokaryote (0.6-2 Mb)",
+    "gc_interpretation": "31.29% \u2014 AT-rich (Firmicutes-like)",
+    "hypothetical_ratio": 0.2471,
+    "insights": [
+      "Genome classification: small prokaryote (0.6-2 Mb)",
+      "GC content analysis: 31.29% \u2014 AT-rich (Firmicutes-like)",
+      "Hypothetical protein ratio: 24.7% (475/1922)",
+      "CRISPR defense: 15 array(s) with ~96 spacers \u2014 active adaptive immunity",
+      "Secretome: 294 signal peptides (15.3% of proteins)",
+      "Gene organization: 429 predicted operons (1566 genes)",
+      "Taxonomic classification: Archaea",
+      "Metabolic capabilities: motile, nitrogen_fixing, pathogenicity, phototropic",
+      "Predicted lifestyle: nitrogen-fixing, phototrophic, motile, potential pathogen",
+      "Putative genomic islands: 6 regions with aberrant GC content (potential HGT)"
+    ],
+    "recommendations": [
+      "Annotation looks good \u2014 no additional analysis recommended"
+    ],
+    "metabolic_markers": {
+      "motile": 5,
+      "nitrogen_fixing": 1,
+      "pathogenicity": 2,
+      "phototropic": 1
+    },
+    "gc_islands": 6,
+    "stats": {
+      "total_cds": 1922,
+      "total_trna": 36,
+      "total_rrna": 6,
+      "total_crispr": 15,
+      "total_signal_peptides": 294,
+      "hypothetical": 475,
+      "annotated": 1447
+    }
+  },
+  "qc_checks": [
+    {
+      "name": "gene_density",
+      "passed": true,
+      "value": 1.105,
+      "expected": "0.5-1.5 genes/kb",
+      "message": "1.105 genes/kb (1922 genes in 1740 kb)",
+      "severity": "info"
+    },
+    {
+      "name": "trna_complement",
+      "passed": true,
+      "value": 21,
+      "expected": ">=18 amino acid types",
+      "message": "21/20 amino acid tRNAs found (36 total tRNAs)",
+      "severity": "info"
+    },
+    {
+      "name": "rrna_operons",
+      "passed": true,
+      "value": 3,
+      "expected": "5S + 16S + 23S",
+      "message": "Found: 5S, 16S, 23S (6 total rRNAs)",
+      "severity": "info"
+    },
+    {
+      "name": "coding_density",
+      "passed": true,
+      "value": 88.1,
+      "expected": "70-95%",
+      "message": "88.1% coding (1,532,839 bp of 1,739,927 bp)",
+      "severity": "info"
+    },
+    {
+      "name": "avg_gene_length",
+      "passed": true,
+      "value": 798.0,
+      "expected": "600-1500 bp",
+      "message": "798 bp average across 1922 genes",
+      "severity": "info"
+    },
+    {
+      "name": "feature_overlaps",
+      "passed": false,
+      "value": 506,
+      "expected": "<15% of features",
+      "message": "506 overlapping features (22.3%)",
+      "severity": "warning"
+    },
+    {
+      "name": "rrna_lengths",
+      "passed": false,
+      "value": 4,
+      "expected": "16S:1400-1600, 23S:2800-3000, 5S:100-150",
+      "message": "6 rRNAs checked, 2 out of range: 5S=81bp (expect 100-150), 5S=81bp (expect 100-150)",
+      "severity": "warning"
+    },
+    {
+      "name": "start_codon_dist",
+      "passed": true,
+      "value": 91.1,
+      "expected": "ATG 50-95%",
+      "message": "ATG=91.1% (ATG:1750, GTG:83, TTG:88, other:1)",
+      "severity": "info"
+    },
+    {
+      "name": "strand_bias",
+      "passed": true,
+      "value": 50.3,
+      "expected": "30-70% forward strand",
+      "message": "50.3% forward (966/1922)",
+      "severity": "info"
+    },
+    {
+      "name": "rrna_copy_number",
+      "passed": true,
+      "value": 2,
+      "expected": "1-7 copies for 1.7 Mb genome",
+      "message": "2 copies of 16S rRNA for 1.7 Mb genome",
+      "severity": "info"
+    }
+  ],
+  "files": [
+    "mjan_output/GCF_000091665.1_ASM9166v1_genomic.gff3",
+    "mjan_output/GCF_000091665.1_ASM9166v1_genomic.gbk",
+    "mjan_output/GCF_000091665.1_ASM9166v1_genomic_features.tsv",
+    "mjan_output/GCF_000091665.1_ASM9166v1_genomic_proteins.faa",
+    "mjan_output/GCF_000091665.1_ASM9166v1_genomic.fna"
+  ],
+  "generated_at": "2026-03-12T13:49:38Z",
+  "water_cycle": {
+    "genome.loaded": 1,
+    "crispr.detected": 1,
+    "trna.detected": 1,
+    "genes.called": 1,
+    "rrna.detected": 1,
+    "proteins.found": 1,
+    "minigenes.found": 1,
+    "signal_peptides.found": 1,
+    "operons.grouped": 1,
+    "taxonomy.inferred": 1,
+    "qc.completed": 2,
+    "annotation.ready": 2,
+    "output.written": 1,
+    "equilibrium": 1
+  }
+}

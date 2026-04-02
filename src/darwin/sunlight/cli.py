@@ -367,3 +367,134 @@ def compare(genome1: Path, genome2: Path, kmer_size: int, sketch_size: int) -> N
     result_table.add_row("Species call", verdict)
     result_table.add_row("Threshold", comp["threshold"])
     console.print(result_table)
+
+
+@cli.command()
+@click.argument("fasta", type=click.Path(exists=True, path_type=Path))
+@click.option(
+    "-o",
+    "--output",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Output directory [default: <input_name>_domains]",
+)
+@click.option("-e", "--evalue", default=1e-5, type=float, help="E-value threshold (default: 1e-5)")
+@click.option("--cpus", default=1, type=int, help="Number of CPUs")
+@click.option(
+    "--hmm-db",
+    multiple=True,
+    type=click.Path(exists=True, path_type=Path),
+    help="HMM database(s) to search [default: auto-discover Pfam]",
+)
+@click.option("--width", default=70, type=int, help="Width of domain architecture map (default: 70)")
+def domains(
+    fasta: Path,
+    output: Path | None,
+    evalue: float,
+    cpus: int,
+    hmm_db: tuple,
+    width: int,
+) -> None:
+    """Characterize protein domains from a FASTA file.
+
+    Takes a protein FASTA and searches all sequences against Pfam
+    HMM databases, producing a TSV table of domain hits and an
+    ASCII domain architecture map.
+
+    \b
+    Example:
+        darwin domains proteins.faa
+        darwin domains proteins.faa -o my_results/ --cpus 4
+        darwin domains proteins.faa --evalue 1e-10
+    """
+    from darwin.soil.nutrients import NutrientStore
+    from darwin.sunlight.domains import (
+        format_all_maps,
+        format_tsv,
+        read_protein_fasta,
+        search_domains,
+    )
+
+    # Output directory
+    if output is None:
+        output = fasta.parent / f"{fasta.stem}_domains"
+    output.mkdir(parents=True, exist_ok=True)
+
+    # Read proteins
+    console.print(
+        Panel.fit(
+            f"[bold green]Domain Characterization[/bold green]\n"
+            f"Input: {fasta}\n"
+            f"Output: {output}\n"
+            f"E-value: {evalue}",
+            title="🧬 Darwin Domains",
+            border_style="green",
+        )
+    )
+
+    proteins = read_protein_fasta(fasta)
+    if not proteins:
+        console.print("[red]No protein sequences found in input file.[/red]")
+        sys.exit(1)
+
+    console.print(f"  Read [bold]{len(proteins)}[/bold] protein sequences")
+
+    # Find HMM databases
+    if hmm_db:
+        hmm_paths = list(hmm_db)
+    else:
+        soil = NutrientStore()
+        available_dbs = soil.get_hmm_databases()
+        hmm_paths = [db.path for db in available_dbs]
+
+    if not hmm_paths:
+        console.print(
+            "[red]No HMM databases found.[/red]\n"
+            "  Run [bold]darwin setup --pfam[/bold] to download Pfam-A,\n"
+            "  or pass --hmm-db /path/to/database.hmm"
+        )
+        sys.exit(1)
+
+    console.print(f"  Using [bold]{len(hmm_paths)}[/bold] HMM database(s): "
+                  + ", ".join(p.stem for p in hmm_paths))
+
+    # Search
+    console.print("\n[bold]Searching domains...[/bold]")
+    results = search_domains(proteins, hmm_paths, evalue=evalue, cpus=cpus)
+
+    # Stats
+    total_hits = sum(p.num_domains for p in results)
+    proteins_with_domains = sum(1 for p in results if p.num_domains > 0)
+
+    stats_table = Table(title="🧬 Domain Search Results")
+    stats_table.add_column("Metric", style="cyan")
+    stats_table.add_column("Value", style="white")
+    stats_table.add_row("Total proteins", str(len(results)))
+    stats_table.add_row("Proteins with domains", f"{proteins_with_domains} ({proteins_with_domains/len(results):.1%})")
+    stats_table.add_row("Total domain hits", str(total_hits))
+    if proteins_with_domains > 0:
+        avg_domains = total_hits / proteins_with_domains
+        stats_table.add_row("Avg domains per hit protein", f"{avg_domains:.1f}")
+    console.print(stats_table)
+
+    # Write TSV
+    tsv_path = output / f"{fasta.stem}_domains.tsv"
+    tsv_content = format_tsv(results)
+    tsv_path.write_text(tsv_content)
+    console.print(f"\n  📄 TSV: {tsv_path}")
+
+    # Write domain map
+    map_path = output / f"{fasta.stem}_domain_map.txt"
+    map_content = format_all_maps(results, width=width)
+    map_path.write_text(map_content)
+    console.print(f"  🗺️  Map: {map_path}")
+
+    # Show a preview of the first few maps
+    preview_count = min(5, len(results))
+    console.print(f"\n[dim]Preview (first {preview_count} proteins):[/dim]\n")
+    from darwin.sunlight.domains import format_domain_map
+
+    for prot in results[:preview_count]:
+        console.print(format_domain_map(prot, width=width))
+
+    console.print(f"\n[green bold]Done![/green bold] Results in: {output}")
